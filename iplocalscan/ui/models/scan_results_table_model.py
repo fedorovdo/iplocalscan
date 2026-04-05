@@ -33,6 +33,10 @@ def _sort_hostname(result: ScanResult) -> str:
     return (result.hostname or "").casefold()
 
 
+def _sort_vendor(result: ScanResult) -> str:
+    return (result.vendor or "").casefold()
+
+
 def _sort_status(result: ScanResult) -> int:
     return result.status.sort_order
 
@@ -74,6 +78,12 @@ class ScanResultsTableModel(QAbstractTableModel):
                 display_value=lambda result: result.mac_address
                 or self._localizer.text("common.not_available"),
                 sort_value=_sort_mac,
+            ),
+            ColumnSpec(
+                header_key="table.vendor",
+                display_value=lambda result: result.vendor
+                or self._localizer.text("common.not_available"),
+                sort_value=_sort_vendor,
             ),
             ColumnSpec(
                 header_key="table.hostname",
@@ -179,7 +189,7 @@ class ScanResultsTableModel(QAbstractTableModel):
         parts = [
             result.ip_address,
             result.mac_address or "",
-            result.mac_vendor or "",
+            result.vendor or "",
             result.hostname or "",
             result.status.value,
             self._localizer.text(f"status.host.{result.status.value}"),

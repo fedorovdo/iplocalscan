@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS scan_results (
     scan_id INTEGER NOT NULL,
     ip_address TEXT NOT NULL,
     mac_address TEXT,
-    mac_vendor TEXT,
+    vendor TEXT,
     hostname TEXT,
     status TEXT NOT NULL,
     open_ports_json TEXT NOT NULL DEFAULT '[]',
@@ -46,6 +46,7 @@ class DatabaseManager:
         self._database_path.parent.mkdir(parents=True, exist_ok=True)
         with self.connection() as connection:
             connection.executescript(SCHEMA_SQL)
+            self._apply_migrations(connection)
 
     @contextmanager
     def connection(self) -> Iterator[sqlite3.Connection]:
@@ -61,3 +62,18 @@ class DatabaseManager:
         finally:
             connection.close()
 
+    def _apply_migrations(self, connection: sqlite3.Connection) -> None:
+        scan_result_columns = {
+            row["name"]
+            for row in connection.execute("PRAGMA table_info(scan_results)")
+        }
+        if "vendor" not in scan_result_columns:
+            connection.execute("ALTER TABLE scan_results ADD COLUMN vendor TEXT")
+        if "mac_vendor" in scan_result_columns:
+            connection.execute(
+                """
+                UPDATE scan_results
+                SET vendor = COALESCE(vendor, mac_vendor)
+                WHERE mac_vendor IS NOT NULL
+                """
+            )

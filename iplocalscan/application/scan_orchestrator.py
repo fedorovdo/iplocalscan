@@ -120,7 +120,7 @@ class ScanOrchestrator:
             discovered_host,
             hostname=hostname or discovered_host.hostname,
             mac_address=mac_address or discovered_host.mac_address,
-            mac_vendor=vendor or discovered_host.mac_vendor,
+            vendor=vendor or discovered_host.vendor,
             open_ports=[],
             detected_services=[],
         )

@@ -18,3 +18,5 @@ iplocalscan = "iplocalscan.app:main"
 [tool.setuptools.packages.find]
 include = ["iplocalscan*"]
 
+[tool.setuptools.package-data]
+"iplocalscan.services.data" = ["*.json"]

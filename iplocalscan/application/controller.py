@@ -159,6 +159,7 @@ class ScanController(QObject):
                 "ip_address": persisted_result.ip_address,
                 "hostname": persisted_result.hostname,
                 "mac_address": persisted_result.mac_address,
+                "vendor": persisted_result.vendor,
                 "open_ports": persisted_result.open_ports,
                 "service_count": len(persisted_result.detected_services),
             },

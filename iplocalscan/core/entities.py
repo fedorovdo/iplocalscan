@@ -17,7 +17,7 @@ class ServiceRecord:
 class ScanResult:
     ip_address: str
     mac_address: str | None = None
-    mac_vendor: str | None = None
+    vendor: str | None = None
     hostname: str | None = None
     status: HostStatus = HostStatus.UNKNOWN
     open_ports: list[int] = field(default_factory=list)

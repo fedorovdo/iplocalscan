@@ -18,10 +18,12 @@ from .services.portscan import (
     StaticPortServiceDetector,
 )
 from .services.resolvers import (
-    SocketHostnameResolver,
+    CompositeHostnameResolver,
+    ReverseDnsHostnameResolver,
+    WindowsNetbiosHostnameResolver,
     WindowsArpTableMacAddressResolver,
 )
-from .services.stubs import StubMacVendorLookup
+from .services.vendor_lookup import LocalOuiVendorLookup
 from .ui.main_window import MainWindow
 
 
@@ -40,11 +42,16 @@ def create_application(
     localization = LocalizationManager()
     orchestrator = ScanOrchestrator(
         host_discovery=SubprocessPingHostDiscovery(),
-        hostname_resolver=SocketHostnameResolver(),
+        hostname_resolver=CompositeHostnameResolver(
+            (
+                ReverseDnsHostnameResolver(),
+                WindowsNetbiosHostnameResolver(),
+            )
+        ),
         mac_address_resolver=WindowsArpTableMacAddressResolver(),
         port_scanner=SocketTcpConnectPortScanner(),
         service_detector=StaticPortServiceDetector(),
-        mac_vendor_lookup=StubMacVendorLookup(),
+        mac_vendor_lookup=LocalOuiVendorLookup(),
     )
     controller = ScanController(
         orchestrator=orchestrator,
