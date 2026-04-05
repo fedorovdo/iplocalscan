@@ -8,10 +8,13 @@ TRANSLATIONS = {
         "main.scan_button": "Scan",
         "main.stop_button": "Stop",
         "main.history_button": "History",
+        "main.language_label": "Language",
         "main.filter_label": "Filter",
         "main.filter_placeholder": (
             "Search by IP, MAC, vendor, hostname, ports, or services"
         ),
+        "language.english": "English",
+        "language.russian": "Russian",
         "main.online_only_checkbox": "Online only",
         "main.has_open_ports_checkbox": "Has open ports",
         "main.has_services_checkbox": "Has services",
@@ -105,10 +108,13 @@ TRANSLATIONS = {
         "main.scan_button": "Сканировать",
         "main.stop_button": "Стоп",
         "main.history_button": "История",
+        "main.language_label": "Язык",
         "main.filter_label": "Фильтр",
         "main.filter_placeholder": (
             "Поиск по IP, MAC, производителю, имени хоста, портам или сервисам"
         ),
+        "language.english": "Английский",
+        "language.russian": "Русский",
         "main.online_only_checkbox": "Только онлайн",
         "main.has_open_ports_checkbox": "Есть открытые порты",
         "main.has_services_checkbox": "Есть сервисы",

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QSignalBlocker, Qt
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
+    QComboBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -47,6 +48,8 @@ class MainWindow(QMainWindow):
         self._scan_button = QPushButton(self)
         self._stop_button = QPushButton(self)
         self._history_button = QPushButton(self)
+        self._language_label = QLabel(self)
+        self._language_combo = QComboBox(self)
         self._filter_label = QLabel(self)
         self._filter_input = QLineEdit(self)
         self._online_only_checkbox = QCheckBox(self)
@@ -64,12 +67,13 @@ class MainWindow(QMainWindow):
             indeterminate=False,
             detail_key="progress.detail.ready",
         )
+        self._current_status_event = StatusEvent(key="status.ready")
 
         self._build_ui()
         self._connect_signals()
         self._retranslate_ui()
         self._set_busy_state(False)
-        self.statusBar().showMessage(self._localizer.text("status.ready"))
+        self._show_status_event(self._current_status_event)
 
     def _build_ui(self) -> None:
         self.resize(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)
@@ -106,6 +110,9 @@ class MainWindow(QMainWindow):
         controls_layout.addWidget(self._scan_button)
         controls_layout.addWidget(self._stop_button)
         controls_layout.addWidget(self._history_button)
+        controls_layout.addStretch(1)
+        controls_layout.addWidget(self._language_label)
+        controls_layout.addWidget(self._language_combo)
 
         filter_layout = QHBoxLayout()
         filter_layout.addWidget(self._filter_label)
@@ -134,6 +141,7 @@ class MainWindow(QMainWindow):
             self._proxy_model.set_has_services_only
         )
         self._network_input.returnPressed.connect(self._handle_scan_clicked)
+        self._language_combo.currentIndexChanged.connect(self._handle_language_changed)
 
         self._controller.status_event.connect(self._show_status_event)
         self._controller.stage_event.connect(self._show_stage_event)
@@ -155,7 +163,13 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def _show_status_event(self, event: StatusEvent) -> None:
+        self._current_status_event = event
         self.statusBar().showMessage(self._localizer.text(event.key, **event.params))
+
+    def _handle_language_changed(self, index: int) -> None:
+        locale_code = self._language_combo.itemData(index)
+        if isinstance(locale_code, str):
+            self._localizer.set_locale(locale_code)
 
     def _show_stage_event(self, event: StageEvent) -> None:
         self._current_stage_event = event
@@ -196,6 +210,8 @@ class MainWindow(QMainWindow):
         self._scan_button.setText(self._localizer.text("main.scan_button"))
         self._stop_button.setText(self._localizer.text("main.stop_button"))
         self._history_button.setText(self._localizer.text("main.history_button"))
+        self._language_label.setText(self._localizer.text("main.language_label"))
+        self._refresh_language_selector()
         self._filter_label.setText(self._localizer.text("main.filter_label"))
         self._filter_input.setPlaceholderText(
             self._localizer.text("main.filter_placeholder")
@@ -224,6 +240,12 @@ class MainWindow(QMainWindow):
                     **self._current_progress_event.params,
                 )
             )
+        self.statusBar().showMessage(
+            self._localizer.text(
+                self._current_status_event.key,
+                **self._current_status_event.params,
+            )
+        )
 
     def _apply_progress_visual_state(self, stage_key: str) -> None:
         style_by_stage = {
@@ -243,3 +265,20 @@ class MainWindow(QMainWindow):
         progress_style, label_style = style_by_stage.get(stage_key, ("", ""))
         self._scan_progress_bar.setStyleSheet(progress_style)
         self._scan_stage_label.setStyleSheet(label_style)
+
+    def _refresh_language_selector(self) -> None:
+        current_locale = self._localizer.locale_code
+        blocker = QSignalBlocker(self._language_combo)
+        self._language_combo.clear()
+        self._language_combo.addItem(
+            self._localizer.text("language.english"),
+            "en",
+        )
+        self._language_combo.addItem(
+            self._localizer.text("language.russian"),
+            "ru",
+        )
+        current_index = self._language_combo.findData(current_locale)
+        if current_index >= 0:
+            self._language_combo.setCurrentIndex(current_index)
+        del blocker

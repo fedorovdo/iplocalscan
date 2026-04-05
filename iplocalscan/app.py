@@ -23,6 +23,7 @@ from .services.resolvers import (
     WindowsNetbiosHostnameResolver,
     WindowsArpTableMacAddressResolver,
 )
+from .settings import SettingsManager
 from .services.vendor_lookup import LocalOuiVendorLookup
 from .ui.main_window import MainWindow
 
@@ -38,8 +39,11 @@ def create_application(
     paths = ApplicationPaths.detect()
     database_manager = DatabaseManager(paths.database_path)
     database_manager.initialize()
+    settings_manager = SettingsManager(paths.settings_path)
+    application_settings = settings_manager.load()
 
-    localization = LocalizationManager()
+    localization = LocalizationManager(application_settings.locale_code)
+    localization.locale_changed.connect(settings_manager.save_locale)
     orchestrator = ScanOrchestrator(
         host_discovery=SubprocessPingHostDiscovery(),
         hostname_resolver=CompositeHostnameResolver(

@@ -16,6 +16,7 @@ DEFAULT_WINDOW_HEIGHT = 680
 class ApplicationPaths:
     data_dir: Path
     database_path: Path
+    settings_path: Path
 
     @classmethod
     def detect(cls, app_name: str = APP_NAME) -> "ApplicationPaths":
@@ -43,4 +44,5 @@ class ApplicationPaths:
         return cls(
             data_dir=data_dir,
             database_path=data_dir / f"{app_name}.db",
+            settings_path=data_dir / "settings.json",
         )
