@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QSignalBlocker, Qt
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -24,6 +25,7 @@ from ..application.controller import (
 )
 from ..config import DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH
 from ..localization.manager import LocalizationManager
+from .about_dialog import AboutDialog
 from .history_dialog import HistoryDialog
 from .models.scan_results_filter_proxy_model import ScanResultsFilterProxyModel
 from .models.scan_results_table_model import ScanResultsTableModel
@@ -59,6 +61,8 @@ class MainWindow(QMainWindow):
         self._scan_detail_label = QLabel(self)
         self._scan_progress_bar = QProgressBar(self)
         self._results_table = QTableView(self)
+        self._help_menu = self.menuBar().addMenu("")
+        self._about_action = QAction(self)
         self._current_stage_event = StageEvent(key="progress.stage.ready")
         self._current_progress_event = ProgressEvent(
             minimum=0,
@@ -129,6 +133,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._results_table, stretch=1)
 
     def _connect_signals(self) -> None:
+        self._about_action.triggered.connect(self._open_about_dialog)
         self._scan_button.clicked.connect(self._handle_scan_clicked)
         self._stop_button.clicked.connect(self._controller.request_stop)
         self._history_button.clicked.connect(self._open_history_dialog)
@@ -157,6 +162,13 @@ class MainWindow(QMainWindow):
     def _open_history_dialog(self) -> None:
         dialog = HistoryDialog(
             controller=self._controller,
+            localizer=self._localizer,
+            parent=self,
+        )
+        dialog.exec()
+
+    def _open_about_dialog(self) -> None:
+        dialog = AboutDialog(
             localizer=self._localizer,
             parent=self,
         )
@@ -203,6 +215,10 @@ class MainWindow(QMainWindow):
 
     def _retranslate_ui(self, _locale_code: str | None = None) -> None:
         self.setWindowTitle(self._localizer.text("app.title"))
+        self._help_menu.setTitle(self._localizer.text("menu.help"))
+        self._about_action.setText(self._localizer.text("menu.about"))
+        if self._about_action not in self._help_menu.actions():
+            self._help_menu.addAction(self._about_action)
         self._network_label.setText(self._localizer.text("main.network_range_label"))
         self._network_input.setPlaceholderText(
             self._localizer.text("main.network_range_placeholder")

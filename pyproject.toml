@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "iplocalscan"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Production-oriented network scanner desktop app scaffold for administrators."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -17,6 +17,9 @@ iplocalscan = "iplocalscan.app:main"
 
 [tool.setuptools.packages.find]
 include = ["iplocalscan*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "iplocalscan.version.__version__"}
 
 [tool.setuptools.package-data]
 "iplocalscan.services.data" = ["*.json"]
