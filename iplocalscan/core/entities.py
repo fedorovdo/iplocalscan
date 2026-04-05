@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from .enums import HostStatus, ScanLifecycleStatus
+from .enums import HostStatus, ScanLifecycleStatus, ScanStage
 
 
 @dataclass(slots=True)
@@ -46,7 +46,8 @@ class ScanExecutionResult:
 @dataclass(slots=True)
 class ScanProgress:
     network_range: str
+    stage: ScanStage
     total_hosts: int
-    scanned_hosts: int
-    discovered_hosts: int
+    completed_hosts: int
+    discovered_hosts: int = 0
     current_ip: str | None = None

@@ -11,7 +11,7 @@ from threading import Event
 from typing import Callable
 
 from ..core.entities import ScanProgress, ScanResult
-from ..core.enums import HostStatus
+from ..core.enums import HostStatus, ScanStage
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +67,9 @@ class SubprocessPingHostDiscovery:
                 on_progress(
                     ScanProgress(
                         network_range=network_range,
+                        stage=ScanStage.DISCOVERY,
                         total_hosts=0,
-                        scanned_hosts=0,
+                        completed_hosts=0,
                         discovered_hosts=0,
                     )
                 )
@@ -154,8 +155,9 @@ class SubprocessPingHostDiscovery:
                         on_progress(
                             ScanProgress(
                                 network_range=network_range,
+                                stage=ScanStage.DISCOVERY,
                                 total_hosts=total_hosts,
-                                scanned_hosts=scanned_hosts,
+                                completed_hosts=scanned_hosts,
                                 discovered_hosts=discovered_hosts,
                                 current_ip=probe_result.ip_address,
                             )

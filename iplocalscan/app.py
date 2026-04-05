@@ -13,15 +13,15 @@ from .localization.manager import LocalizationManager
 from .persistence.database import DatabaseManager
 from .persistence.repositories import ScanResultRepository, ScanSessionRepository
 from .services.discovery import SubprocessPingHostDiscovery
+from .services.portscan import (
+    SocketTcpConnectPortScanner,
+    StaticPortServiceDetector,
+)
 from .services.resolvers import (
     SocketHostnameResolver,
     WindowsArpTableMacAddressResolver,
 )
-from .services.stubs import (
-    StubMacVendorLookup,
-    StubPortScanner,
-    StubServiceDetector,
-)
+from .services.stubs import StubMacVendorLookup
 from .ui.main_window import MainWindow
 
 
@@ -42,8 +42,8 @@ def create_application(
         host_discovery=SubprocessPingHostDiscovery(),
         hostname_resolver=SocketHostnameResolver(),
         mac_address_resolver=WindowsArpTableMacAddressResolver(),
-        port_scanner=StubPortScanner(),
-        service_detector=StubServiceDetector(),
+        port_scanner=SocketTcpConnectPortScanner(),
+        service_detector=StaticPortServiceDetector(),
         mac_vendor_lookup=StubMacVendorLookup(),
     )
     controller = ScanController(

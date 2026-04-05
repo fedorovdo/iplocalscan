@@ -24,3 +24,7 @@ class ScanLifecycleStatus(StrEnum):
     STOPPED = "stopped"
     FAILED = "failed"
 
+
+class ScanStage(StrEnum):
+    DISCOVERY = "discovery"
+    PORT_SCAN = "port_scan"

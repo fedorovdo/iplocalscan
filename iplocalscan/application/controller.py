@@ -8,7 +8,7 @@ from PySide6.QtCore import QObject, QThread, Signal
 
 from ..config import DEFAULT_HISTORY_LIMIT
 from ..core.entities import ScanExecutionResult, ScanProgress, ScanResult, ScanSession
-from ..core.enums import ScanLifecycleStatus
+from ..core.enums import ScanLifecycleStatus, ScanStage
 from ..core.networking import normalize_network_range
 from ..persistence.repositories import ScanResultRepository, ScanSessionRepository
 from .scan_orchestrator import ScanOrchestrator
@@ -149,26 +149,38 @@ class ScanController(QObject):
     def _handle_result_discovered(self, result: ScanResult) -> None:
         session_id = self._current_session.id if self._current_session else None
         persisted_result = replace(result, scan_id=session_id)
-        self._current_results.append(persisted_result)
+        self._upsert_current_result(persisted_result)
         self.result_discovered.emit(persisted_result)
         logger.info(
-            "Result discovered during scan.",
+            "Result updated during scan.",
             extra={
-                "event": "scan_result_discovered",
+                "event": "scan_result_updated",
                 "scan_id": session_id,
                 "ip_address": persisted_result.ip_address,
                 "hostname": persisted_result.hostname,
                 "mac_address": persisted_result.mac_address,
+                "open_ports": persisted_result.open_ports,
+                "service_count": len(persisted_result.detected_services),
             },
         )
 
     def _handle_progress_updated(self, progress: ScanProgress) -> None:
+        if progress.stage is ScanStage.DISCOVERY:
+            self._emit_status(
+                "status.scan_progress.discovery",
+                network_range=progress.network_range,
+                completed_hosts=progress.completed_hosts,
+                total_hosts=progress.total_hosts,
+                discovered_hosts=progress.discovered_hosts,
+            )
+            return
+
         self._emit_status(
-            "status.scan_progress",
-            network_range=progress.network_range,
-            scanned_hosts=progress.scanned_hosts,
+            "status.scan_progress.ports",
+            completed_hosts=progress.completed_hosts,
             total_hosts=progress.total_hosts,
-            discovered_hosts=progress.discovered_hosts,
+            current_ip=progress.current_ip or "",
+            hosts_with_open_ports=progress.discovered_hosts,
         )
 
     def _handle_scan_completed(self, execution: ScanExecutionResult) -> None:
@@ -286,6 +298,17 @@ class ScanController(QObject):
             return len(persisted_results), False
 
         return len(persisted_results), True
+
+    def _upsert_current_result(self, updated_result: ScanResult) -> None:
+        for index, existing_result in enumerate(self._current_results):
+            if (
+                existing_result.scan_id == updated_result.scan_id
+                and existing_result.ip_address == updated_result.ip_address
+            ):
+                self._current_results[index] = updated_result
+                return
+
+        self._current_results.append(updated_result)
 
     def _handle_thread_finished(self) -> None:
         finished_thread = self.sender()

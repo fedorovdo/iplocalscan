@@ -30,7 +30,12 @@ class MacAddressResolver(Protocol):
 
 
 class PortScanner(Protocol):
-    def scan_open_ports(self, ip_address: str) -> list[int]:
+    def scan_open_ports(
+        self,
+        ip_address: str,
+        *,
+        stop_event: Event | None = None,
+    ) -> list[int]:
         ...
 
 

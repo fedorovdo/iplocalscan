@@ -37,6 +37,22 @@ def _sort_status(result: ScanResult) -> int:
     return result.status.sort_order
 
 
+def _format_open_ports(result: ScanResult) -> str:
+    return ",".join(str(port) for port in result.open_ports)
+
+
+def _sort_open_ports(result: ScanResult) -> str:
+    return ",".join(f"{port:05d}" for port in result.open_ports)
+
+
+def _format_services(result: ScanResult) -> str:
+    return ", ".join(service.name for service in result.detected_services)
+
+
+def _sort_services(result: ScanResult) -> str:
+    return _format_services(result).casefold()
+
+
 class ScanResultsTableModel(QAbstractTableModel):
     def __init__(
         self,
@@ -71,6 +87,18 @@ class ScanResultsTableModel(QAbstractTableModel):
                     f"status.host.{result.status.value}"
                 ),
                 sort_value=_sort_status,
+            ),
+            ColumnSpec(
+                header_key="table.open_ports",
+                display_value=lambda result: _format_open_ports(result)
+                or self._localizer.text("common.not_available"),
+                sort_value=_sort_open_ports,
+            ),
+            ColumnSpec(
+                header_key="table.services",
+                display_value=lambda result: _format_services(result)
+                or self._localizer.text("common.not_available"),
+                sort_value=_sort_services,
             ),
         )
         self._localizer.locale_changed.connect(self._handle_locale_changed)
@@ -155,6 +183,8 @@ class ScanResultsTableModel(QAbstractTableModel):
             result.hostname or "",
             result.status.value,
             self._localizer.text(f"status.host.{result.status.value}"),
+            _format_open_ports(result),
+            _format_services(result),
         ]
         return " ".join(parts).casefold()
 
@@ -180,4 +210,3 @@ class ScanResultsTableModel(QAbstractTableModel):
                 0,
                 self.columnCount() - 1,
             )
-

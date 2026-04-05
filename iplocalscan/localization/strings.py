@@ -9,7 +9,7 @@ TRANSLATIONS = {
         "main.stop_button": "Stop",
         "main.history_button": "History",
         "main.filter_label": "Filter",
-        "main.filter_placeholder": "Search by IP, MAC, hostname, or status",
+        "main.filter_placeholder": "Search by IP, MAC, hostname, status, ports, or services",
         "history.title": "Recent Scans",
         "history.description": "The latest {limit} stored scans are listed below.",
         "history.empty": "No scan history is available yet.",
@@ -24,17 +24,23 @@ TRANSLATIONS = {
         "table.mac_address": "MAC Address",
         "table.hostname": "Hostname",
         "table.status": "Status",
+        "table.open_ports": "Open Ports",
+        "table.services": "Services",
         "status.ready": "Ready.",
         "status.invalid_network": (
             "Enter an IPv4 network in CIDR format, for example {example}."
         ),
         "status.scan_started": "Starting scan for {network_range}...",
-        "status.scan_progress": (
-            "Scanning {network_range}: checked {scanned_hosts}/{total_hosts}, "
+        "status.scan_progress.discovery": (
+            "Discovering hosts in {network_range}: checked {completed_hosts}/{total_hosts}, "
             "found {discovered_hosts} online."
         ),
+        "status.scan_progress.ports": (
+            "Scanning ports for {total_hosts} host(s): completed {completed_hosts}/{total_hosts}, "
+            "{hosts_with_open_ports} host(s) with open ports."
+        ),
         "status.scan_completed": (
-            "Scan completed for {network_range}. Found {result_count} online host(s)."
+            "Scan completed for {network_range}. Found {result_count} online host(s) and finished basic port scanning."
         ),
         "status.scan_stopped": (
             "Scan stopped for {network_range}. Found {result_count} online host(s) before cancellation."
@@ -51,7 +57,7 @@ TRANSLATIONS = {
         "status.scan.completed": "Completed",
         "status.scan.stopped": "Stopped",
         "status.scan.failed": "Failed",
-        "scan.note.completed": "Ping-based host discovery completed.",
+        "scan.note.completed": "Host discovery and basic port scanning completed.",
         "scan.note.stop_requested": "The scan was stopped by the user.",
         "common.not_available": "N/A",
     },
@@ -63,7 +69,7 @@ TRANSLATIONS = {
         "main.stop_button": "Стоп",
         "main.history_button": "История",
         "main.filter_label": "Фильтр",
-        "main.filter_placeholder": "Поиск по IP, MAC, имени хоста или статусу",
+        "main.filter_placeholder": "Поиск по IP, MAC, имени хоста, статусу, портам или сервисам",
         "history.title": "Последние сканирования",
         "history.description": "Ниже показаны последние {limit} сохраненных сканирования.",
         "history.empty": "История сканирований пока пуста.",
@@ -78,17 +84,23 @@ TRANSLATIONS = {
         "table.mac_address": "MAC-адрес",
         "table.hostname": "Имя хоста",
         "table.status": "Статус",
+        "table.open_ports": "Открытые порты",
+        "table.services": "Сервисы",
         "status.ready": "Готово.",
         "status.invalid_network": (
             "Введите IPv4-сеть в формате CIDR, например {example}."
         ),
         "status.scan_started": "Запуск сканирования для {network_range}...",
-        "status.scan_progress": (
-            "Сканирование {network_range}: проверено {scanned_hosts}/{total_hosts}, "
+        "status.scan_progress.discovery": (
+            "Поиск хостов в {network_range}: проверено {completed_hosts}/{total_hosts}, "
             "найдено в сети {discovered_hosts}."
         ),
+        "status.scan_progress.ports": (
+            "Сканирование портов для {total_hosts} хостов: завершено {completed_hosts}/{total_hosts}, "
+            "хостов с открытыми портами: {hosts_with_open_ports}."
+        ),
         "status.scan_completed": (
-            "Сканирование {network_range} завершено. Найдено {result_count} узлов в сети."
+            "Сканирование {network_range} завершено. Найдено {result_count} узлов в сети, базовое сканирование портов завершено."
         ),
         "status.scan_stopped": (
             "Сканирование {network_range} остановлено. До отмены найдено {result_count} узлов в сети."
@@ -105,7 +117,7 @@ TRANSLATIONS = {
         "status.scan.completed": "Завершено",
         "status.scan.stopped": "Остановлено",
         "status.scan.failed": "Ошибка",
-        "scan.note.completed": "Завершено обнаружение хостов на основе ping.",
+        "scan.note.completed": "Обнаружение хостов и базовое сканирование портов завершены.",
         "scan.note.stop_requested": "Сканирование остановлено пользователем.",
         "common.not_available": "Н/Д",
     },
