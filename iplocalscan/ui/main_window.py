@@ -1,20 +1,15 @@
 from __future__ import annotations
 
-import csv
-from pathlib import Path
-
 from PySide6.QtCore import QSignalBlocker, Qt
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
     QComboBox,
-    QFileDialog,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QMainWindow,
-    QMessageBox,
     QProgressBar,
     QPushButton,
     QTableView,
@@ -31,6 +26,7 @@ from ..application.controller import (
 from ..config import DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH
 from ..localization.manager import LocalizationManager
 from .about_dialog import AboutDialog
+from .csv_export import export_visible_table_to_csv
 from .history_dialog import HistoryDialog
 from .models.scan_results_filter_proxy_model import ScanResultsFilterProxyModel
 from .models.scan_results_table_model import ScanResultsTableModel
@@ -183,77 +179,10 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def _export_visible_results_to_csv(self) -> None:
-        visible_columns = [
-            column
-            for column in range(self._proxy_model.columnCount())
-            if not self._results_table.isColumnHidden(column)
-        ]
-        visible_rows = self._proxy_model.rowCount()
-        if visible_rows == 0 or not visible_columns:
-            QMessageBox.information(
-                self,
-                self._localizer.text("export.csv.title"),
-                self._localizer.text("export.csv.no_rows"),
-            )
-            return
-
-        dialog = QFileDialog(
-            self,
-            self._localizer.text("export.csv.save_dialog_title"),
-        )
-        dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
-        dialog.setNameFilter(self._localizer.text("export.csv.file_filter"))
-        dialog.setDefaultSuffix("csv")
-        if dialog.exec() != QFileDialog.DialogCode.Accepted:
-            return
-        selected_files = dialog.selectedFiles()
-        if not selected_files:
-            return
-
-        target_path = Path(selected_files[0])
-        if target_path.suffix.lower() != ".csv":
-            target_path = target_path.with_suffix(".csv")
-
-        try:
-            with target_path.open("w", encoding="utf-8-sig", newline="") as handle:
-                writer = csv.writer(handle)
-                writer.writerow(
-                    [
-                        str(
-                            self._proxy_model.headerData(
-                                column,
-                                Qt.Orientation.Horizontal,
-                                Qt.ItemDataRole.DisplayRole,
-                            )
-                            or ""
-                        )
-                        for column in visible_columns
-                    ]
-                )
-                for row in range(visible_rows):
-                    writer.writerow(
-                        [
-                            str(
-                                self._proxy_model.index(row, column).data(
-                                    Qt.ItemDataRole.DisplayRole
-                                )
-                                or ""
-                            )
-                            for column in visible_columns
-                        ]
-                    )
-        except OSError as exc:
-            QMessageBox.critical(
-                self,
-                self._localizer.text("export.csv.title"),
-                self._localizer.text("export.csv.failed", reason=str(exc)),
-            )
-            return
-
-        QMessageBox.information(
-            self,
-            self._localizer.text("export.csv.title"),
-            self._localizer.text("export.csv.success", path=str(target_path)),
+        export_visible_table_to_csv(
+            parent=self,
+            localizer=self._localizer,
+            table_view=self._results_table,
         )
 
     def _show_status_event(self, event: StatusEvent) -> None:

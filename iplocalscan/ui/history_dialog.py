@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 from ..application.controller import ScanController
 from ..config import DEFAULT_HISTORY_LIMIT
 from ..localization.manager import LocalizationManager
+from .csv_export import export_visible_table_to_csv
 from .models.scan_results_table_model import ScanResultsTableModel
 
 
@@ -42,6 +43,10 @@ class HistoryDialog(QDialog):
         self._button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Close,
             parent=self,
+        )
+        self._export_button = self._button_box.addButton(
+            "",
+            QDialogButtonBox.ButtonRole.ActionRole,
         )
 
         self._build_ui()
@@ -78,6 +83,7 @@ class HistoryDialog(QDialog):
 
     def _connect_signals(self) -> None:
         self._history_list.currentRowChanged.connect(self._handle_history_selected)
+        self._export_button.clicked.connect(self._export_visible_results_to_csv)
         self._button_box.rejected.connect(self.reject)
         self._localizer.locale_changed.connect(self._retranslate_ui)
 
@@ -151,6 +157,7 @@ class HistoryDialog(QDialog):
             self._localizer.text("history.saved_scans_label")
         )
         self._preview_label.setText(self._localizer.text("history.preview_label"))
+        self._export_button.setText(self._localizer.text("menu.export_csv"))
         self._button_box.button(QDialogButtonBox.StandardButton.Close).setText(
             self._localizer.text("history.close_button")
         )
@@ -158,3 +165,10 @@ class HistoryDialog(QDialog):
 
     def _format_timestamp(self, timestamp: datetime) -> str:
         return timestamp.astimezone().strftime("%Y-%m-%d %H:%M:%S")
+
+    def _export_visible_results_to_csv(self) -> None:
+        export_visible_table_to_csv(
+            parent=self,
+            localizer=self._localizer,
+            table_view=self._preview_table,
+        )
