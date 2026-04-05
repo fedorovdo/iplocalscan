@@ -66,6 +66,7 @@ class HistoryDialog(QDialog):
         )
         self._preview_table.setAlternatingRowColors(True)
         self._preview_table.horizontalHeader().setStretchLastSection(True)
+        self._preview_table.sortByColumn(0, Qt.SortOrder.AscendingOrder)
 
         layout = QVBoxLayout(self)
         layout.addWidget(self._description_label)
@@ -138,6 +139,11 @@ class HistoryDialog(QDialog):
 
         scan_results = self._controller.list_results_for_scan(selected_session.id)
         self._results_model.set_results(scan_results)
+        header = self._preview_table.horizontalHeader()
+        self._results_model.sort(
+            header.sortIndicatorSection(),
+            header.sortIndicatorOrder(),
+        )
 
     def _retranslate_ui(self, _locale_code: str | None = None) -> None:
         self.setWindowTitle(self._localizer.text("history.title"))
@@ -152,4 +158,3 @@ class HistoryDialog(QDialog):
 
     def _format_timestamp(self, timestamp: datetime) -> str:
         return timestamp.astimezone().strftime("%Y-%m-%d %H:%M:%S")
-

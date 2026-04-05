@@ -17,6 +17,22 @@ class HostStatus(StrEnum):
         }[self]
 
 
+class ChangeStatus(StrEnum):
+    NEW = "new"
+    CHANGED = "changed"
+    UNCHANGED = "unchanged"
+    REMOVED = "removed"
+
+    @property
+    def sort_order(self) -> int:
+        return {
+            ChangeStatus.NEW: 0,
+            ChangeStatus.CHANGED: 1,
+            ChangeStatus.REMOVED: 2,
+            ChangeStatus.UNCHANGED: 3,
+        }[self]
+
+
 class ScanLifecycleStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"

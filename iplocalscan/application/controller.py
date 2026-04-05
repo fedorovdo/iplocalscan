@@ -8,9 +8,10 @@ from PySide6.QtCore import QObject, QThread, Signal
 
 from ..config import DEFAULT_HISTORY_LIMIT
 from ..core.entities import ScanExecutionResult, ScanProgress, ScanResult, ScanSession
-from ..core.enums import ScanLifecycleStatus, ScanStage
+from ..core.enums import ChangeStatus, ScanLifecycleStatus, ScanStage
 from ..core.networking import normalize_network_range
 from ..persistence.repositories import ScanResultRepository, ScanSessionRepository
+from .scan_comparison import ScanComparisonService
 from .scan_orchestrator import ScanOrchestrator
 from .scan_worker import ScanWorker
 
@@ -34,14 +35,18 @@ class ScanController(QObject):
         orchestrator: ScanOrchestrator,
         session_repository: ScanSessionRepository,
         result_repository: ScanResultRepository,
+        comparison_service: ScanComparisonService | None = None,
     ) -> None:
         super().__init__()
         self._orchestrator = orchestrator
         self._session_repository = session_repository
         self._result_repository = result_repository
+        self._comparison_service = comparison_service or ScanComparisonService()
         self._busy = False
         self._current_session: ScanSession | None = None
         self._current_results: list[ScanResult] = []
+        self._baseline_results: list[ScanResult] = []
+        self._baseline_results_by_ip: dict[str, ScanResult] = {}
         self._scan_thread: QThread | None = None
         self._scan_worker: ScanWorker | None = None
 
@@ -68,6 +73,7 @@ class ScanController(QObject):
 
         self._set_busy(True)
         self._orchestrator.clear_stop_request()
+        self._load_comparison_baseline(normalized_range)
         self._current_results = []
         self.results_replaced.emit([])
 
@@ -148,20 +154,25 @@ class ScanController(QObject):
 
     def _handle_result_discovered(self, result: ScanResult) -> None:
         session_id = self._current_session.id if self._current_session else None
-        persisted_result = replace(result, scan_id=session_id)
-        self._upsert_current_result(persisted_result)
-        self.result_discovered.emit(persisted_result)
+        baseline_result = self._baseline_results_by_ip.get(result.ip_address)
+        compared_result = self._comparison_service.classify_result(
+            replace(result, scan_id=session_id),
+            baseline_result,
+        )
+        self._upsert_current_result(compared_result)
+        self.result_discovered.emit(compared_result)
         logger.info(
             "Result updated during scan.",
             extra={
                 "event": "scan_result_updated",
                 "scan_id": session_id,
-                "ip_address": persisted_result.ip_address,
-                "hostname": persisted_result.hostname,
-                "mac_address": persisted_result.mac_address,
-                "vendor": persisted_result.vendor,
-                "open_ports": persisted_result.open_ports,
-                "service_count": len(persisted_result.detected_services),
+                "ip_address": compared_result.ip_address,
+                "hostname": compared_result.hostname,
+                "mac_address": compared_result.mac_address,
+                "vendor": compared_result.vendor,
+                "change_status": compared_result.change_status.value,
+                "open_ports": compared_result.open_ports,
+                "service_count": len(compared_result.detected_services),
             },
         )
 
@@ -185,10 +196,13 @@ class ScanController(QObject):
         )
 
     def _handle_scan_completed(self, execution: ScanExecutionResult) -> None:
+        if execution.status is ScanLifecycleStatus.COMPLETED:
+            self._append_missing_results()
+
         result_count, persisted = self._persist_results(
             status=execution.status,
             note=execution.note,
-            results=execution.results,
+            results=self._current_results,
         )
         session = self._current_session
         network_range = session.network_range if session is not None else ""
@@ -230,8 +244,7 @@ class ScanController(QObject):
                 "result_count": result_count,
             },
         )
-        self._current_session = None
-        self._set_busy(False)
+        self._reset_runtime_state()
 
     def _handle_scan_failed(self, reason: str) -> None:
         session = self._current_session
@@ -253,8 +266,7 @@ class ScanController(QObject):
         if not persisted:
             reason = "Database write failed."
         self._emit_status("status.scan_failed", reason=reason)
-        self._current_session = None
-        self._set_busy(False)
+        self._reset_runtime_state()
 
     def _persist_results(
         self,
@@ -276,6 +288,11 @@ class ScanController(QObject):
             for result in results
         ]
         self._current_results = persisted_results
+        active_result_count = sum(
+            1
+            for result in persisted_results
+            if result.change_status is not ChangeStatus.REMOVED
+        )
 
         try:
             self._result_repository.replace_for_scan(session.id, persisted_results)
@@ -283,7 +300,7 @@ class ScanController(QObject):
                 session_id=session.id,
                 status=status,
                 finished_at=datetime.now(timezone.utc),
-                result_count=len(persisted_results),
+                result_count=active_result_count,
                 note=note,
             )
             self._session_repository.trim_history(DEFAULT_HISTORY_LIMIT)
@@ -296,9 +313,9 @@ class ScanController(QObject):
                     "status": status.value,
                 },
             )
-            return len(persisted_results), False
+            return active_result_count, False
 
-        return len(persisted_results), True
+        return active_result_count, True
 
     def _upsert_current_result(self, updated_result: ScanResult) -> None:
         for index, existing_result in enumerate(self._current_results):
@@ -323,3 +340,59 @@ class ScanController(QObject):
 
     def _emit_status(self, key: str, **params: object) -> None:
         self.status_event.emit(StatusEvent(key=key, params=params))
+
+    def _load_comparison_baseline(self, network_range: str) -> None:
+        self._baseline_results = []
+        self._baseline_results_by_ip = {}
+
+        try:
+            baseline_session = self._session_repository.get_latest_completed_for_network(
+                network_range
+            )
+            if baseline_session is None or baseline_session.id is None:
+                return
+
+            baseline_results = self._result_repository.list_for_scan(baseline_session.id)
+            self._baseline_results = self._comparison_service.prepare_baseline(
+                baseline_results
+            )
+            self._baseline_results_by_ip = {
+                result.ip_address: result for result in self._baseline_results
+            }
+            logger.info(
+                "Loaded comparison baseline for scan.",
+                extra={
+                    "event": "scan_comparison_baseline_loaded",
+                    "network_range": network_range,
+                    "baseline_scan_id": baseline_session.id,
+                    "baseline_result_count": len(self._baseline_results),
+                },
+            )
+        except Exception:
+            logger.exception(
+                "Failed to load comparison baseline.",
+                extra={
+                    "event": "scan_comparison_baseline_failed",
+                    "network_range": network_range,
+                },
+            )
+
+    def _append_missing_results(self) -> None:
+        if not self._baseline_results:
+            return
+
+        session_id = self._current_session.id if self._current_session else None
+        missing_results = self._comparison_service.build_missing_results(
+            self._current_results,
+            self._baseline_results,
+        )
+        for missing_result in missing_results:
+            current_missing = replace(missing_result, scan_id=session_id)
+            self._upsert_current_result(current_missing)
+            self.result_discovered.emit(current_missing)
+
+    def _reset_runtime_state(self) -> None:
+        self._current_session = None
+        self._baseline_results = []
+        self._baseline_results_by_ip = {}
+        self._set_busy(False)

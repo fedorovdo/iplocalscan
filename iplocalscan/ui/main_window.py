@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QCheckBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -42,6 +43,9 @@ class MainWindow(QMainWindow):
         self._history_button = QPushButton(self)
         self._filter_label = QLabel(self)
         self._filter_input = QLineEdit(self)
+        self._online_only_checkbox = QCheckBox(self)
+        self._has_open_ports_checkbox = QCheckBox(self)
+        self._has_services_checkbox = QCheckBox(self)
         self._results_table = QTableView(self)
 
         self._build_ui()
@@ -83,6 +87,9 @@ class MainWindow(QMainWindow):
         filter_layout = QHBoxLayout()
         filter_layout.addWidget(self._filter_label)
         filter_layout.addWidget(self._filter_input, stretch=1)
+        filter_layout.addWidget(self._online_only_checkbox)
+        filter_layout.addWidget(self._has_open_ports_checkbox)
+        filter_layout.addWidget(self._has_services_checkbox)
 
         layout.addLayout(controls_layout)
         layout.addLayout(filter_layout)
@@ -93,6 +100,13 @@ class MainWindow(QMainWindow):
         self._stop_button.clicked.connect(self._controller.request_stop)
         self._history_button.clicked.connect(self._open_history_dialog)
         self._filter_input.textChanged.connect(self._proxy_model.set_search_text)
+        self._online_only_checkbox.toggled.connect(self._proxy_model.set_online_only)
+        self._has_open_ports_checkbox.toggled.connect(
+            self._proxy_model.set_has_open_ports_only
+        )
+        self._has_services_checkbox.toggled.connect(
+            self._proxy_model.set_has_services_only
+        )
         self._network_input.returnPressed.connect(self._handle_scan_clicked)
 
         self._controller.status_event.connect(self._show_status_event)
@@ -133,4 +147,13 @@ class MainWindow(QMainWindow):
         self._filter_label.setText(self._localizer.text("main.filter_label"))
         self._filter_input.setPlaceholderText(
             self._localizer.text("main.filter_placeholder")
+        )
+        self._online_only_checkbox.setText(
+            self._localizer.text("main.online_only_checkbox")
+        )
+        self._has_open_ports_checkbox.setText(
+            self._localizer.text("main.has_open_ports_checkbox")
+        )
+        self._has_services_checkbox.setText(
+            self._localizer.text("main.has_services_checkbox")
         )

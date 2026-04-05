@@ -123,6 +123,7 @@ class ScanOrchestrator:
             vendor=vendor or discovered_host.vendor,
             open_ports=[],
             detected_services=[],
+            ports_scanned=False,
         )
 
     def _scan_ports_for_discovered_hosts(
@@ -176,6 +177,7 @@ class ScanOrchestrator:
                 discovered_host,
                 open_ports=open_ports,
                 detected_services=detected_services,
+                ports_scanned=True,
             )
             if open_ports:
                 hosts_with_open_ports += 1

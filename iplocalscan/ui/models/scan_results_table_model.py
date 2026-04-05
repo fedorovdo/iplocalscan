@@ -5,8 +5,11 @@ from ipaddress import ip_address
 from typing import Any, Callable
 
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
+from PySide6.QtGui import QBrush, QColor
 
 from ...core.entities import ScanResult
+from ...core.enums import ChangeStatus
+from ...core.mac import normalize_mac_address
 from ...localization.manager import LocalizationManager
 
 
@@ -24,37 +27,72 @@ def _sort_ip(result: ScanResult) -> int:
         return -1
 
 
-def _sort_mac(result: ScanResult) -> str:
-    raw_value = result.mac_address or ""
-    return "".join(character for character in raw_value if character.isalnum()).lower()
+def _sort_optional_text(value: str | None) -> tuple[int, str]:
+    normalized_value = (value or "").casefold()
+    return (0, normalized_value) if normalized_value else (1, "")
 
 
-def _sort_hostname(result: ScanResult) -> str:
-    return (result.hostname or "").casefold()
+def _sort_mac(result: ScanResult) -> tuple[int, str]:
+    normalized_mac = normalize_mac_address(result.mac_address)
+    if normalized_mac is None:
+        return (1, "")
+    return (0, normalized_mac.replace(":", ""))
 
 
-def _sort_vendor(result: ScanResult) -> str:
-    return (result.vendor or "").casefold()
+def _sort_hostname(result: ScanResult) -> tuple[int, str]:
+    return _sort_optional_text(result.hostname)
+
+
+def _sort_vendor(result: ScanResult) -> tuple[int, str]:
+    return _sort_optional_text(result.vendor)
 
 
 def _sort_status(result: ScanResult) -> int:
     return result.status.sort_order
 
 
+def _sort_change_status(result: ScanResult) -> int:
+    return result.change_status.sort_order
+
+
 def _format_open_ports(result: ScanResult) -> str:
     return ",".join(str(port) for port in result.open_ports)
 
 
-def _sort_open_ports(result: ScanResult) -> str:
-    return ",".join(f"{port:05d}" for port in result.open_ports)
+def _sort_open_ports(result: ScanResult) -> tuple[int, int, int, tuple[int, ...]]:
+    if not result.open_ports:
+        return (1, 0, 0, ())
+    sorted_ports = tuple(sorted(result.open_ports))
+    return (0, sorted_ports[0], len(sorted_ports), sorted_ports)
 
 
 def _format_services(result: ScanResult) -> str:
     return ", ".join(service.name for service in result.detected_services)
 
 
-def _sort_services(result: ScanResult) -> str:
-    return _format_services(result).casefold()
+def _sort_services(result: ScanResult) -> tuple[int, tuple[str, ...]]:
+    if not result.detected_services:
+        return (1, ())
+    return (
+        0,
+        tuple(
+            service.name.casefold()
+            for service in sorted(
+                result.detected_services,
+                key=lambda service: (service.port or -1, service.name.casefold()),
+            )
+        ),
+    )
+
+
+def _background_brush(result: ScanResult) -> QBrush | None:
+    color_map = {
+        ChangeStatus.NEW: QColor("#e6f4ea"),
+        ChangeStatus.CHANGED: QColor("#fff4ce"),
+        ChangeStatus.REMOVED: QColor("#fde7e9"),
+    }
+    color = color_map.get(result.change_status)
+    return QBrush(color) if color is not None else None
 
 
 class ScanResultsTableModel(QAbstractTableModel):
@@ -99,6 +137,13 @@ class ScanResultsTableModel(QAbstractTableModel):
                 sort_value=_sort_status,
             ),
             ColumnSpec(
+                header_key="table.change_status",
+                display_value=lambda result: self._localizer.text(
+                    f"status.change.{result.change_status.value}"
+                ),
+                sort_value=_sort_change_status,
+            ),
+            ColumnSpec(
                 header_key="table.open_ports",
                 display_value=lambda result: _format_open_ports(result)
                 or self._localizer.text("common.not_available"),
@@ -134,6 +179,8 @@ class ScanResultsTableModel(QAbstractTableModel):
             return column.display_value(result)
         if role == Qt.ItemDataRole.UserRole:
             return column.sort_value(result)
+        if role == Qt.ItemDataRole.BackgroundRole:
+            return _background_brush(result)
         if role == Qt.ItemDataRole.TextAlignmentRole:
             return int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         return None
@@ -181,22 +228,52 @@ class ScanResultsTableModel(QAbstractTableModel):
         self.dataChanged.emit(
             top_left,
             bottom_right,
-            [Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.UserRole],
+            [
+                Qt.ItemDataRole.DisplayRole,
+                Qt.ItemDataRole.UserRole,
+                Qt.ItemDataRole.BackgroundRole,
+            ],
         )
 
     def search_text_for_row(self, row: int) -> str:
         result = self._results[row]
+        normalized_mac = normalize_mac_address(result.mac_address) or ""
         parts = [
             result.ip_address,
             result.mac_address or "",
+            normalized_mac,
+            normalized_mac.replace(":", ""),
             result.vendor or "",
             result.hostname or "",
             result.status.value,
             self._localizer.text(f"status.host.{result.status.value}"),
+            result.change_status.value,
+            self._localizer.text(f"status.change.{result.change_status.value}"),
             _format_open_ports(result),
             _format_services(result),
         ]
         return " ".join(parts).casefold()
+
+    def result_at(self, row: int) -> ScanResult | None:
+        if row < 0 or row >= len(self._results):
+            return None
+        return self._results[row]
+
+    def sort(
+        self,
+        column: int,
+        order: Qt.SortOrder = Qt.SortOrder.AscendingOrder,
+    ) -> None:
+        if column < 0 or column >= len(self._columns):
+            return
+
+        self.layoutAboutToBeChanged.emit()
+        self._results.sort(
+            key=self._columns[column].sort_value,
+            reverse=order == Qt.SortOrder.DescendingOrder,
+        )
+        self._rebuild_result_index()
+        self.layoutChanged.emit()
 
     def _rebuild_result_index(self) -> None:
         self._result_index_by_key = {

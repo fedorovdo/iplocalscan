@@ -7,7 +7,7 @@ from sqlite3 import Row
 from typing import Sequence
 
 from ..core.entities import ScanResult, ScanSession, ServiceRecord
-from ..core.enums import HostStatus, ScanLifecycleStatus
+from ..core.enums import ChangeStatus, HostStatus, ScanLifecycleStatus
 from .database import DatabaseManager
 
 
@@ -78,6 +78,20 @@ class ScanSessionRepository:
             ).fetchall()
         return [self._row_to_session(row) for row in rows]
 
+    def get_latest_completed_for_network(self, network_range: str) -> ScanSession | None:
+        with self._database_manager.connection() as connection:
+            row = connection.execute(
+                """
+                SELECT id, network_range, started_at, finished_at, status, result_count, note
+                FROM scans
+                WHERE network_range = ? AND status = ?
+                ORDER BY started_at DESC
+                LIMIT 1
+                """,
+                (network_range, ScanLifecycleStatus.COMPLETED.value),
+            ).fetchone()
+        return self._row_to_session(row) if row is not None else None
+
     def trim_history(self, keep_last: int = 3) -> None:
         with self._database_manager.connection() as connection:
             stale_rows = connection.execute(
@@ -135,10 +149,11 @@ class ScanResultRepository:
                     vendor,
                     hostname,
                     status,
+                    change_status,
                     open_ports_json,
                     detected_services_json
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -148,6 +163,7 @@ class ScanResultRepository:
                         result.vendor,
                         result.hostname,
                         result.status.value,
+                        result.change_status.value,
                         json.dumps(result.open_ports),
                         json.dumps(
                             [asdict(service) for service in result.detected_services]
@@ -168,6 +184,7 @@ class ScanResultRepository:
                     vendor,
                     hostname,
                     status,
+                    change_status,
                     open_ports_json,
                     detected_services_json
                 FROM scan_results
@@ -195,6 +212,7 @@ class ScanResultRepository:
             vendor=row["vendor"],
             hostname=row["hostname"],
             status=HostStatus(row["status"]),
+            change_status=ChangeStatus(row["change_status"] or ChangeStatus.UNCHANGED.value),
             open_ports=list(json.loads(row["open_ports_json"])),
             detected_services=services,
         )

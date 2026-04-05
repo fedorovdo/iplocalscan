@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from .enums import HostStatus, ScanLifecycleStatus, ScanStage
+from .enums import ChangeStatus, HostStatus, ScanLifecycleStatus, ScanStage
 
 
 @dataclass(slots=True)
@@ -20,8 +20,10 @@ class ScanResult:
     vendor: str | None = None
     hostname: str | None = None
     status: HostStatus = HostStatus.UNKNOWN
+    change_status: ChangeStatus = ChangeStatus.UNCHANGED
     open_ports: list[int] = field(default_factory=list)
     detected_services: list[ServiceRecord] = field(default_factory=list)
+    ports_scanned: bool = False
     scan_id: int | None = None
 
 

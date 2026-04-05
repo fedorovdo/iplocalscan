@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS scan_results (
     vendor TEXT,
     hostname TEXT,
     status TEXT NOT NULL,
+    change_status TEXT NOT NULL DEFAULT 'unchanged',
     open_ports_json TEXT NOT NULL DEFAULT '[]',
     detected_services_json TEXT NOT NULL DEFAULT '[]',
     FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE
@@ -69,6 +70,13 @@ class DatabaseManager:
         }
         if "vendor" not in scan_result_columns:
             connection.execute("ALTER TABLE scan_results ADD COLUMN vendor TEXT")
+        if "change_status" not in scan_result_columns:
+            connection.execute(
+                """
+                ALTER TABLE scan_results
+                ADD COLUMN change_status TEXT NOT NULL DEFAULT 'unchanged'
+                """
+            )
         if "mac_vendor" in scan_result_columns:
             connection.execute(
                 """
@@ -77,3 +85,10 @@ class DatabaseManager:
                 WHERE mac_vendor IS NOT NULL
                 """
             )
+        connection.execute(
+            """
+            UPDATE scan_results
+            SET change_status = COALESCE(change_status, 'unchanged')
+            WHERE change_status IS NULL
+            """
+        )
