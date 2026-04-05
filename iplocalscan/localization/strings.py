@@ -1,0 +1,112 @@
+from __future__ import annotations
+
+TRANSLATIONS = {
+    "en": {
+        "app.title": "IP Local Scan",
+        "main.network_range_label": "Network range",
+        "main.network_range_placeholder": "Example: 192.168.1.0/24",
+        "main.scan_button": "Scan",
+        "main.stop_button": "Stop",
+        "main.history_button": "History",
+        "main.filter_label": "Filter",
+        "main.filter_placeholder": "Search by IP, MAC, hostname, or status",
+        "history.title": "Recent Scans",
+        "history.description": "The latest {limit} stored scans are listed below.",
+        "history.empty": "No scan history is available yet.",
+        "history.saved_scans_label": "Saved scans",
+        "history.preview_label": "Results preview",
+        "history.scan_item": (
+            "{started_at} | {network_range} | {status} | {result_count} result(s)"
+        ),
+        "history.details.empty": "Select a saved scan to preview its results.",
+        "history.close_button": "Close",
+        "table.ip_address": "IP Address",
+        "table.mac_address": "MAC Address",
+        "table.hostname": "Hostname",
+        "table.status": "Status",
+        "status.ready": "Ready.",
+        "status.invalid_network": (
+            "Enter a valid IPv4 network range, for example {example}."
+        ),
+        "status.scan_started": "Starting stub scan for {network_range}...",
+        "status.scan_completed_stub": (
+            "Stub scan completed for {network_range}. "
+            "Host discovery is not implemented yet."
+        ),
+        "status.scan_stopped": (
+            "Stub scan for {network_range} was stopped after {result_count} result(s)."
+        ),
+        "status.scan_failed": "Scan failed: {reason}",
+        "status.scan_already_running": "A scan is already in progress.",
+        "status.no_active_scan": "There is no active scan to stop.",
+        "status.stop_requested": (
+            "Stop requested. The current scan will stop once background workers exist."
+        ),
+        "status.host.unknown": "Unknown",
+        "status.host.up": "Up",
+        "status.host.down": "Down",
+        "status.scan.pending": "Pending",
+        "status.scan.running": "Running",
+        "status.scan.completed": "Completed",
+        "status.scan.stopped": "Stopped",
+        "status.scan.failed": "Failed",
+        "scan.note.stub": "Stub scan executed. Real network probing is not implemented yet.",
+        "scan.note.stop_requested": "The scan was stopped before completion.",
+        "common.not_available": "N/A",
+    },
+    "ru": {
+        "app.title": "IP Local Scan",
+        "main.network_range_label": "Диапазон сети",
+        "main.network_range_placeholder": "Пример: 192.168.1.0/24",
+        "main.scan_button": "Сканировать",
+        "main.stop_button": "Стоп",
+        "main.history_button": "История",
+        "main.filter_label": "Фильтр",
+        "main.filter_placeholder": "Поиск по IP, MAC, имени хоста или статусу",
+        "history.title": "Последние сканирования",
+        "history.description": "Ниже показаны последние {limit} сохраненных сканирования.",
+        "history.empty": "История сканирований пока пуста.",
+        "history.saved_scans_label": "Сохраненные сканирования",
+        "history.preview_label": "Предпросмотр результатов",
+        "history.scan_item": (
+            "{started_at} | {network_range} | {status} | {result_count} результат(ов)"
+        ),
+        "history.details.empty": "Выберите сохраненное сканирование для просмотра результатов.",
+        "history.close_button": "Закрыть",
+        "table.ip_address": "IP-адрес",
+        "table.mac_address": "MAC-адрес",
+        "table.hostname": "Имя хоста",
+        "table.status": "Статус",
+        "status.ready": "Готово.",
+        "status.invalid_network": (
+            "Введите корректный диапазон IPv4, например {example}."
+        ),
+        "status.scan_started": "Запуск тестового сканирования для {network_range}...",
+        "status.scan_completed_stub": (
+            "Тестовое сканирование для {network_range} завершено. "
+            "Обнаружение хостов пока не реализовано."
+        ),
+        "status.scan_stopped": (
+            "Тестовое сканирование для {network_range} остановлено после {result_count} результат(ов)."
+        ),
+        "status.scan_failed": "Ошибка сканирования: {reason}",
+        "status.scan_already_running": "Сканирование уже выполняется.",
+        "status.no_active_scan": "Нет активного сканирования для остановки.",
+        "status.stop_requested": (
+            "Остановка запрошена. Текущее сканирование будет прервано, когда появятся фоновые воркеры."
+        ),
+        "status.host.unknown": "Неизвестно",
+        "status.host.up": "Доступен",
+        "status.host.down": "Недоступен",
+        "status.scan.pending": "Ожидание",
+        "status.scan.running": "Выполняется",
+        "status.scan.completed": "Завершено",
+        "status.scan.stopped": "Остановлено",
+        "status.scan.failed": "Ошибка",
+        "scan.note.stub": (
+            "Выполнено тестовое сканирование. Реальная проверка сети пока не реализована."
+        ),
+        "scan.note.stop_requested": "Сканирование остановлено до завершения.",
+        "common.not_available": "Н/Д",
+    },
+}

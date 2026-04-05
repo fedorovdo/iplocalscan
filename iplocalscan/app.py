@@ -1,0 +1,55 @@
+from __future__ import annotations
+
+import sys
+from collections.abc import Sequence
+
+from PySide6.QtWidgets import QApplication
+
+from .application.controller import ScanController
+from .application.scan_orchestrator import ScanOrchestrator
+from .config import APP_DISPLAY_NAME, APP_NAME, ApplicationPaths
+from .localization.manager import LocalizationManager
+from .persistence.database import DatabaseManager
+from .persistence.repositories import ScanResultRepository, ScanSessionRepository
+from .services.stubs import (
+    StubHostDiscoveryService,
+    StubHostnameResolver,
+    StubMacVendorLookup,
+    StubPortScanner,
+    StubServiceDetector,
+)
+from .ui.main_window import MainWindow
+
+
+def create_application(
+    argv: Sequence[str] | None = None,
+) -> tuple[QApplication, MainWindow]:
+    app = QApplication(list(argv) if argv is not None else sys.argv)
+    app.setApplicationName(APP_DISPLAY_NAME)
+    app.setOrganizationName(APP_NAME)
+
+    paths = ApplicationPaths.detect()
+    database_manager = DatabaseManager(paths.database_path)
+    database_manager.initialize()
+
+    localization = LocalizationManager()
+    orchestrator = ScanOrchestrator(
+        host_discovery=StubHostDiscoveryService(),
+        hostname_resolver=StubHostnameResolver(),
+        port_scanner=StubPortScanner(),
+        service_detector=StubServiceDetector(),
+        mac_vendor_lookup=StubMacVendorLookup(),
+    )
+    controller = ScanController(
+        orchestrator=orchestrator,
+        session_repository=ScanSessionRepository(database_manager),
+        result_repository=ScanResultRepository(database_manager),
+    )
+    window = MainWindow(controller=controller, localizer=localization)
+    return app, window
+
+
+def main() -> int:
+    app, window = create_application()
+    window.show()
+    return app.exec()
