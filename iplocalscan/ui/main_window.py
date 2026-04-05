@@ -97,6 +97,7 @@ class MainWindow(QMainWindow):
 
         self._controller.status_event.connect(self._show_status_event)
         self._controller.results_replaced.connect(self._results_model.set_results)
+        self._controller.result_discovered.connect(self._results_model.upsert_result)
         self._controller.busy_state_changed.connect(self._set_busy_state)
         self._localizer.locale_changed.connect(self._retranslate_ui)
 

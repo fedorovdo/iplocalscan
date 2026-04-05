@@ -8,12 +8,16 @@ from PySide6.QtWidgets import QApplication
 from .application.controller import ScanController
 from .application.scan_orchestrator import ScanOrchestrator
 from .config import APP_DISPLAY_NAME, APP_NAME, ApplicationPaths
+from .logging_config import configure_logging
 from .localization.manager import LocalizationManager
 from .persistence.database import DatabaseManager
 from .persistence.repositories import ScanResultRepository, ScanSessionRepository
+from .services.discovery import SubprocessPingHostDiscovery
+from .services.resolvers import (
+    SocketHostnameResolver,
+    WindowsArpTableMacAddressResolver,
+)
 from .services.stubs import (
-    StubHostDiscoveryService,
-    StubHostnameResolver,
     StubMacVendorLookup,
     StubPortScanner,
     StubServiceDetector,
@@ -24,6 +28,7 @@ from .ui.main_window import MainWindow
 def create_application(
     argv: Sequence[str] | None = None,
 ) -> tuple[QApplication, MainWindow]:
+    configure_logging()
     app = QApplication(list(argv) if argv is not None else sys.argv)
     app.setApplicationName(APP_DISPLAY_NAME)
     app.setOrganizationName(APP_NAME)
@@ -34,8 +39,9 @@ def create_application(
 
     localization = LocalizationManager()
     orchestrator = ScanOrchestrator(
-        host_discovery=StubHostDiscoveryService(),
-        hostname_resolver=StubHostnameResolver(),
+        host_discovery=SubprocessPingHostDiscovery(),
+        hostname_resolver=SocketHostnameResolver(),
+        mac_address_resolver=WindowsArpTableMacAddressResolver(),
         port_scanner=StubPortScanner(),
         service_detector=StubServiceDetector(),
         mac_vendor_lookup=StubMacVendorLookup(),

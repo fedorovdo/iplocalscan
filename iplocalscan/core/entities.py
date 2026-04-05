@@ -42,3 +42,11 @@ class ScanExecutionResult:
     status: ScanLifecycleStatus = ScanLifecycleStatus.COMPLETED
     note: str | None = None
 
+
+@dataclass(slots=True)
+class ScanProgress:
+    network_range: str
+    total_hosts: int
+    scanned_hosts: int
+    discovered_hosts: int
+    current_ip: str | None = None

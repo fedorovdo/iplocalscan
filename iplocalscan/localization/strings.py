@@ -26,32 +26,33 @@ TRANSLATIONS = {
         "table.status": "Status",
         "status.ready": "Ready.",
         "status.invalid_network": (
-            "Enter a valid IPv4 network range, for example {example}."
+            "Enter an IPv4 network in CIDR format, for example {example}."
         ),
-        "status.scan_started": "Starting stub scan for {network_range}...",
-        "status.scan_completed_stub": (
-            "Stub scan completed for {network_range}. "
-            "Host discovery is not implemented yet."
+        "status.scan_started": "Starting scan for {network_range}...",
+        "status.scan_progress": (
+            "Scanning {network_range}: checked {scanned_hosts}/{total_hosts}, "
+            "found {discovered_hosts} online."
+        ),
+        "status.scan_completed": (
+            "Scan completed for {network_range}. Found {result_count} online host(s)."
         ),
         "status.scan_stopped": (
-            "Stub scan for {network_range} was stopped after {result_count} result(s)."
+            "Scan stopped for {network_range}. Found {result_count} online host(s) before cancellation."
         ),
         "status.scan_failed": "Scan failed: {reason}",
         "status.scan_already_running": "A scan is already in progress.",
         "status.no_active_scan": "There is no active scan to stop.",
-        "status.stop_requested": (
-            "Stop requested. The current scan will stop once background workers exist."
-        ),
+        "status.stop_requested": "Stopping scan...",
         "status.host.unknown": "Unknown",
-        "status.host.up": "Up",
-        "status.host.down": "Down",
+        "status.host.up": "Online",
+        "status.host.down": "Offline",
         "status.scan.pending": "Pending",
         "status.scan.running": "Running",
         "status.scan.completed": "Completed",
         "status.scan.stopped": "Stopped",
         "status.scan.failed": "Failed",
-        "scan.note.stub": "Stub scan executed. Real network probing is not implemented yet.",
-        "scan.note.stop_requested": "The scan was stopped before completion.",
+        "scan.note.completed": "Ping-based host discovery completed.",
+        "scan.note.stop_requested": "The scan was stopped by the user.",
         "common.not_available": "N/A",
     },
     "ru": {
@@ -79,34 +80,33 @@ TRANSLATIONS = {
         "table.status": "Статус",
         "status.ready": "Готово.",
         "status.invalid_network": (
-            "Введите корректный диапазон IPv4, например {example}."
+            "Введите IPv4-сеть в формате CIDR, например {example}."
         ),
-        "status.scan_started": "Запуск тестового сканирования для {network_range}...",
-        "status.scan_completed_stub": (
-            "Тестовое сканирование для {network_range} завершено. "
-            "Обнаружение хостов пока не реализовано."
+        "status.scan_started": "Запуск сканирования для {network_range}...",
+        "status.scan_progress": (
+            "Сканирование {network_range}: проверено {scanned_hosts}/{total_hosts}, "
+            "найдено в сети {discovered_hosts}."
+        ),
+        "status.scan_completed": (
+            "Сканирование {network_range} завершено. Найдено {result_count} узлов в сети."
         ),
         "status.scan_stopped": (
-            "Тестовое сканирование для {network_range} остановлено после {result_count} результат(ов)."
+            "Сканирование {network_range} остановлено. До отмены найдено {result_count} узлов в сети."
         ),
         "status.scan_failed": "Ошибка сканирования: {reason}",
         "status.scan_already_running": "Сканирование уже выполняется.",
         "status.no_active_scan": "Нет активного сканирования для остановки.",
-        "status.stop_requested": (
-            "Остановка запрошена. Текущее сканирование будет прервано, когда появятся фоновые воркеры."
-        ),
+        "status.stop_requested": "Остановка сканирования...",
         "status.host.unknown": "Неизвестно",
-        "status.host.up": "Доступен",
-        "status.host.down": "Недоступен",
+        "status.host.up": "В сети",
+        "status.host.down": "Не в сети",
         "status.scan.pending": "Ожидание",
         "status.scan.running": "Выполняется",
         "status.scan.completed": "Завершено",
         "status.scan.stopped": "Остановлено",
         "status.scan.failed": "Ошибка",
-        "scan.note.stub": (
-            "Выполнено тестовое сканирование. Реальная проверка сети пока не реализована."
-        ),
-        "scan.note.stop_requested": "Сканирование остановлено до завершения.",
+        "scan.note.completed": "Завершено обнаружение хостов на основе ping.",
+        "scan.note.stop_requested": "Сканирование остановлено пользователем.",
         "common.not_available": "Н/Д",
     },
 }
