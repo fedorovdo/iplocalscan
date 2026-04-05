@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+import csv
+from pathlib import Path
+
 from PySide6.QtCore import QSignalBlocker, Qt
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
     QComboBox,
+    QFileDialog,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMessageBox,
     QProgressBar,
     QPushButton,
     QTableView,
@@ -61,6 +66,8 @@ class MainWindow(QMainWindow):
         self._scan_detail_label = QLabel(self)
         self._scan_progress_bar = QProgressBar(self)
         self._results_table = QTableView(self)
+        self._file_menu = self.menuBar().addMenu("")
+        self._export_csv_action = QAction(self)
         self._help_menu = self.menuBar().addMenu("")
         self._about_action = QAction(self)
         self._current_stage_event = StageEvent(key="progress.stage.ready")
@@ -133,6 +140,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._results_table, stretch=1)
 
     def _connect_signals(self) -> None:
+        self._export_csv_action.triggered.connect(self._export_visible_results_to_csv)
         self._about_action.triggered.connect(self._open_about_dialog)
         self._scan_button.clicked.connect(self._handle_scan_clicked)
         self._stop_button.clicked.connect(self._controller.request_stop)
@@ -174,6 +182,80 @@ class MainWindow(QMainWindow):
         )
         dialog.exec()
 
+    def _export_visible_results_to_csv(self) -> None:
+        visible_columns = [
+            column
+            for column in range(self._proxy_model.columnCount())
+            if not self._results_table.isColumnHidden(column)
+        ]
+        visible_rows = self._proxy_model.rowCount()
+        if visible_rows == 0 or not visible_columns:
+            QMessageBox.information(
+                self,
+                self._localizer.text("export.csv.title"),
+                self._localizer.text("export.csv.no_rows"),
+            )
+            return
+
+        dialog = QFileDialog(
+            self,
+            self._localizer.text("export.csv.save_dialog_title"),
+        )
+        dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+        dialog.setNameFilter(self._localizer.text("export.csv.file_filter"))
+        dialog.setDefaultSuffix("csv")
+        if dialog.exec() != QFileDialog.DialogCode.Accepted:
+            return
+        selected_files = dialog.selectedFiles()
+        if not selected_files:
+            return
+
+        target_path = Path(selected_files[0])
+        if target_path.suffix.lower() != ".csv":
+            target_path = target_path.with_suffix(".csv")
+
+        try:
+            with target_path.open("w", encoding="utf-8-sig", newline="") as handle:
+                writer = csv.writer(handle)
+                writer.writerow(
+                    [
+                        str(
+                            self._proxy_model.headerData(
+                                column,
+                                Qt.Orientation.Horizontal,
+                                Qt.ItemDataRole.DisplayRole,
+                            )
+                            or ""
+                        )
+                        for column in visible_columns
+                    ]
+                )
+                for row in range(visible_rows):
+                    writer.writerow(
+                        [
+                            str(
+                                self._proxy_model.index(row, column).data(
+                                    Qt.ItemDataRole.DisplayRole
+                                )
+                                or ""
+                            )
+                            for column in visible_columns
+                        ]
+                    )
+        except OSError as exc:
+            QMessageBox.critical(
+                self,
+                self._localizer.text("export.csv.title"),
+                self._localizer.text("export.csv.failed", reason=str(exc)),
+            )
+            return
+
+        QMessageBox.information(
+            self,
+            self._localizer.text("export.csv.title"),
+            self._localizer.text("export.csv.success", path=str(target_path)),
+        )
+
     def _show_status_event(self, event: StatusEvent) -> None:
         self._current_status_event = event
         self.statusBar().showMessage(self._localizer.text(event.key, **event.params))
@@ -211,10 +293,15 @@ class MainWindow(QMainWindow):
         self._scan_button.setEnabled(not busy)
         self._stop_button.setEnabled(busy)
         self._history_button.setEnabled(not busy)
+        self._export_csv_action.setEnabled(not busy)
         self._network_input.setReadOnly(busy)
 
     def _retranslate_ui(self, _locale_code: str | None = None) -> None:
         self.setWindowTitle(self._localizer.text("app.title"))
+        self._file_menu.setTitle(self._localizer.text("menu.file"))
+        self._export_csv_action.setText(self._localizer.text("menu.export_csv"))
+        if self._export_csv_action not in self._file_menu.actions():
+            self._file_menu.addAction(self._export_csv_action)
         self._help_menu.setTitle(self._localizer.text("menu.help"))
         self._about_action.setText(self._localizer.text("menu.about"))
         if self._about_action not in self._help_menu.actions():
