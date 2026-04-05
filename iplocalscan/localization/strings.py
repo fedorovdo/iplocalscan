@@ -68,6 +68,32 @@ TRANSLATIONS = {
         "status.scan.completed": "Completed",
         "status.scan.stopped": "Stopped",
         "status.scan.failed": "Failed",
+        "progress.stage.ready": "Ready to scan.",
+        "progress.stage.discovery": "Discovering hosts...",
+        "progress.stage.port_scan": "Scanning ports...",
+        "progress.stage.finalizing": "Finalizing results...",
+        "progress.stage.completed": "Scan completed.",
+        "progress.stage.stopped": "Scan stopped.",
+        "progress.stage.failed": "Scan failed.",
+        "progress.detail.ready": "Enter a CIDR range to start a scan.",
+        "progress.detail.starting": "Preparing scan for {network_range}...",
+        "progress.detail.discovery": (
+            "{completed_hosts}/{total_hosts} IPs checked, {discovered_hosts} host(s) found."
+        ),
+        "progress.detail.ports": (
+            "{completed_hosts}/{total_hosts} host(s) scanned for ports, "
+            "{hosts_with_open_ports} with open ports."
+        ),
+        "progress.detail.finalizing": (
+            "Comparing with the previous scan and saving results..."
+        ),
+        "progress.detail.completed": (
+            "{result_count} host(s) available in the final results."
+        ),
+        "progress.detail.stopped": (
+            "{result_count} host(s) collected before cancellation."
+        ),
+        "progress.detail.failed": "The scan ended with an error: {reason}",
         "scan.note.completed": "Host discovery and basic port scanning completed.",
         "scan.note.stop_requested": "The scan was stopped by the user.",
         "common.not_available": "N/A",
@@ -139,6 +165,32 @@ TRANSLATIONS = {
         "status.scan.completed": "Завершено",
         "status.scan.stopped": "Остановлено",
         "status.scan.failed": "Ошибка",
+        "progress.stage.ready": "Готово к сканированию.",
+        "progress.stage.discovery": "Поиск хостов...",
+        "progress.stage.port_scan": "Сканирование портов...",
+        "progress.stage.finalizing": "Подготовка результатов...",
+        "progress.stage.completed": "Сканирование завершено.",
+        "progress.stage.stopped": "Сканирование остановлено.",
+        "progress.stage.failed": "Сканирование завершилось с ошибкой.",
+        "progress.detail.ready": "Введите диапазон CIDR, чтобы начать сканирование.",
+        "progress.detail.starting": "Подготовка сканирования для {network_range}...",
+        "progress.detail.discovery": (
+            "Проверено IP: {completed_hosts}/{total_hosts}, найдено хостов: {discovered_hosts}."
+        ),
+        "progress.detail.ports": (
+            "Хостов проверено по портам: {completed_hosts}/{total_hosts}, "
+            "с открытыми портами: {hosts_with_open_ports}."
+        ),
+        "progress.detail.finalizing": (
+            "Сравниваем с предыдущим сканированием и сохраняем результаты..."
+        ),
+        "progress.detail.completed": (
+            "В итоговых результатах доступно {result_count} хост(ов)."
+        ),
+        "progress.detail.stopped": (
+            "До отмены собрано {result_count} хост(ов)."
+        ),
+        "progress.detail.failed": "Сканирование завершилось с ошибкой: {reason}",
         "scan.note.completed": "Обнаружение хостов и базовое сканирование портов завершены.",
         "scan.note.stop_requested": "Сканирование остановлено пользователем.",
         "common.not_available": "Н/Д",

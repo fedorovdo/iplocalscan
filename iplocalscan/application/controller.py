@@ -24,8 +24,26 @@ class StatusEvent:
     params: dict[str, object] = field(default_factory=dict)
 
 
+@dataclass(slots=True)
+class StageEvent:
+    key: str
+    params: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass(slots=True)
+class ProgressEvent:
+    minimum: int = 0
+    maximum: int = 1
+    value: int = 0
+    indeterminate: bool = False
+    detail_key: str | None = None
+    params: dict[str, object] = field(default_factory=dict)
+
+
 class ScanController(QObject):
     status_event = Signal(object)
+    stage_event = Signal(object)
+    progress_event = Signal(object)
     results_replaced = Signal(object)
     result_discovered = Signal(object)
     busy_state_changed = Signal(bool)
@@ -47,6 +65,7 @@ class ScanController(QObject):
         self._current_results: list[ScanResult] = []
         self._baseline_results: list[ScanResult] = []
         self._baseline_results_by_ip: dict[str, ScanResult] = {}
+        self._last_stage: ScanStage | None = None
         self._scan_thread: QThread | None = None
         self._scan_worker: ScanWorker | None = None
 
@@ -100,6 +119,12 @@ class ScanController(QObject):
         self._current_session = session
         self._emit_status(
             "status.scan_started",
+            network_range=normalized_range,
+        )
+        self._emit_stage("progress.stage.discovery")
+        self._emit_progress(
+            indeterminate=True,
+            detail_key="progress.detail.starting",
             network_range=normalized_range,
         )
         logger.info(
@@ -177,7 +202,25 @@ class ScanController(QObject):
         )
 
     def _handle_progress_updated(self, progress: ScanProgress) -> None:
+        if progress.stage is not self._last_stage:
+            self._last_stage = progress.stage
+            if progress.stage is ScanStage.DISCOVERY:
+                self._emit_stage("progress.stage.discovery")
+            else:
+                self._emit_stage("progress.stage.port_scan")
+
         if progress.stage is ScanStage.DISCOVERY:
+            discovery_maximum = max(progress.total_hosts, 1)
+            self._emit_progress(
+                minimum=0,
+                maximum=discovery_maximum,
+                value=min(progress.completed_hosts, discovery_maximum),
+                indeterminate=progress.total_hosts <= 0,
+                detail_key="progress.detail.discovery",
+                completed_hosts=progress.completed_hosts,
+                total_hosts=progress.total_hosts,
+                discovered_hosts=progress.discovered_hosts,
+            )
             self._emit_status(
                 "status.scan_progress.discovery",
                 network_range=progress.network_range,
@@ -187,6 +230,18 @@ class ScanController(QObject):
             )
             return
 
+        port_scan_maximum = max(progress.total_hosts, 1)
+        self._emit_progress(
+            minimum=0,
+            maximum=port_scan_maximum,
+            value=min(progress.completed_hosts, port_scan_maximum),
+            indeterminate=progress.total_hosts <= 0,
+            detail_key="progress.detail.ports",
+            completed_hosts=progress.completed_hosts,
+            total_hosts=progress.total_hosts,
+            hosts_with_open_ports=progress.discovered_hosts,
+            current_ip=progress.current_ip or "",
+        )
         self._emit_status(
             "status.scan_progress.ports",
             completed_hosts=progress.completed_hosts,
@@ -196,6 +251,11 @@ class ScanController(QObject):
         )
 
     def _handle_scan_completed(self, execution: ScanExecutionResult) -> None:
+        self._emit_stage("progress.stage.finalizing")
+        self._emit_progress(
+            indeterminate=True,
+            detail_key="progress.detail.finalizing",
+        )
         if execution.status is ScanLifecycleStatus.COMPLETED:
             self._append_missing_results()
 
@@ -208,6 +268,15 @@ class ScanController(QObject):
         network_range = session.network_range if session is not None else ""
 
         if not persisted:
+            self._emit_stage("progress.stage.failed")
+            self._emit_progress(
+                minimum=0,
+                maximum=1,
+                value=0,
+                indeterminate=False,
+                detail_key="progress.detail.failed",
+                reason="Database write failed.",
+            )
             self._emit_status("status.scan_failed", reason="Database write failed.")
             logger.error(
                 "Scan completed but persistence failed.",
@@ -222,12 +291,30 @@ class ScanController(QObject):
             return
 
         if execution.status is ScanLifecycleStatus.STOPPED:
+            self._emit_stage("progress.stage.stopped")
+            self._emit_progress(
+                minimum=0,
+                maximum=1,
+                value=0,
+                indeterminate=False,
+                detail_key="progress.detail.stopped",
+                result_count=result_count,
+            )
             self._emit_status(
                 "status.scan_stopped",
                 network_range=network_range,
                 result_count=result_count,
             )
         else:
+            self._emit_stage("progress.stage.completed")
+            self._emit_progress(
+                minimum=0,
+                maximum=1,
+                value=1,
+                indeterminate=False,
+                detail_key="progress.detail.completed",
+                result_count=result_count,
+            )
             self._emit_status(
                 "status.scan_completed",
                 network_range=network_range,
@@ -265,6 +352,15 @@ class ScanController(QObject):
         )
         if not persisted:
             reason = "Database write failed."
+        self._emit_stage("progress.stage.failed")
+        self._emit_progress(
+            minimum=0,
+            maximum=1,
+            value=0,
+            indeterminate=False,
+            detail_key="progress.detail.failed",
+            reason=reason,
+        )
         self._emit_status("status.scan_failed", reason=reason)
         self._reset_runtime_state()
 
@@ -341,6 +437,37 @@ class ScanController(QObject):
     def _emit_status(self, key: str, **params: object) -> None:
         self.status_event.emit(StatusEvent(key=key, params=params))
 
+    def _emit_stage(self, key: str, **params: object) -> None:
+        self.stage_event.emit(StageEvent(key=key, params=params))
+
+    def _emit_progress(
+        self,
+        *,
+        minimum: int = 0,
+        maximum: int = 1,
+        value: int = 0,
+        indeterminate: bool = False,
+        detail_key: str | None = None,
+        **params: object,
+    ) -> None:
+        if not indeterminate:
+            safe_maximum = max(maximum, minimum + 1)
+            safe_value = min(max(value, minimum), safe_maximum)
+        else:
+            safe_maximum = maximum
+            safe_value = value
+
+        self.progress_event.emit(
+            ProgressEvent(
+                minimum=minimum,
+                maximum=safe_maximum,
+                value=safe_value,
+                indeterminate=indeterminate,
+                detail_key=detail_key,
+                params=params,
+            )
+        )
+
     def _load_comparison_baseline(self, network_range: str) -> None:
         self._baseline_results = []
         self._baseline_results_by_ip = {}
@@ -395,4 +522,5 @@ class ScanController(QObject):
         self._current_session = None
         self._baseline_results = []
         self._baseline_results_by_ip = {}
+        self._last_stage = None
         self._set_busy(False)

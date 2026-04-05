@@ -8,13 +8,19 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
+    QProgressBar,
     QPushButton,
     QTableView,
     QVBoxLayout,
     QWidget,
 )
 
-from ..application.controller import ScanController, StatusEvent
+from ..application.controller import (
+    ProgressEvent,
+    ScanController,
+    StageEvent,
+    StatusEvent,
+)
 from ..config import DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH
 from ..localization.manager import LocalizationManager
 from .history_dialog import HistoryDialog
@@ -46,7 +52,18 @@ class MainWindow(QMainWindow):
         self._online_only_checkbox = QCheckBox(self)
         self._has_open_ports_checkbox = QCheckBox(self)
         self._has_services_checkbox = QCheckBox(self)
+        self._scan_stage_label = QLabel(self)
+        self._scan_detail_label = QLabel(self)
+        self._scan_progress_bar = QProgressBar(self)
         self._results_table = QTableView(self)
+        self._current_stage_event = StageEvent(key="progress.stage.ready")
+        self._current_progress_event = ProgressEvent(
+            minimum=0,
+            maximum=1,
+            value=0,
+            indeterminate=False,
+            detail_key="progress.detail.ready",
+        )
 
         self._build_ui()
         self._connect_signals()
@@ -74,6 +91,12 @@ class MainWindow(QMainWindow):
         )
         self._results_table.horizontalHeader().setStretchLastSection(True)
         self._results_table.sortByColumn(0, Qt.SortOrder.AscendingOrder)
+        self._scan_stage_label.setObjectName("scanStageLabel")
+        self._scan_detail_label.setObjectName("scanDetailLabel")
+        self._scan_detail_label.setWordWrap(True)
+        self._scan_progress_bar.setTextVisible(True)
+        self._scan_progress_bar.setRange(0, 1)
+        self._scan_progress_bar.setValue(0)
 
         layout = QVBoxLayout(central_widget)
 
@@ -93,6 +116,9 @@ class MainWindow(QMainWindow):
 
         layout.addLayout(controls_layout)
         layout.addLayout(filter_layout)
+        layout.addWidget(self._scan_stage_label)
+        layout.addWidget(self._scan_progress_bar)
+        layout.addWidget(self._scan_detail_label)
         layout.addWidget(self._results_table, stretch=1)
 
     def _connect_signals(self) -> None:
@@ -110,6 +136,8 @@ class MainWindow(QMainWindow):
         self._network_input.returnPressed.connect(self._handle_scan_clicked)
 
         self._controller.status_event.connect(self._show_status_event)
+        self._controller.stage_event.connect(self._show_stage_event)
+        self._controller.progress_event.connect(self._show_progress_event)
         self._controller.results_replaced.connect(self._results_model.set_results)
         self._controller.result_discovered.connect(self._results_model.upsert_result)
         self._controller.busy_state_changed.connect(self._set_busy_state)
@@ -128,6 +156,30 @@ class MainWindow(QMainWindow):
 
     def _show_status_event(self, event: StatusEvent) -> None:
         self.statusBar().showMessage(self._localizer.text(event.key, **event.params))
+
+    def _show_stage_event(self, event: StageEvent) -> None:
+        self._current_stage_event = event
+        self._scan_stage_label.setText(self._localizer.text(event.key, **event.params))
+        self._apply_progress_visual_state(event.key)
+
+    def _show_progress_event(self, event: ProgressEvent) -> None:
+        self._current_progress_event = event
+        if event.indeterminate:
+            self._scan_progress_bar.setRange(0, 0)
+            self._scan_progress_bar.setTextVisible(False)
+        else:
+            self._scan_progress_bar.setRange(event.minimum, event.maximum)
+            self._scan_progress_bar.setValue(event.value)
+            self._scan_progress_bar.setFormat("%p%")
+            self._scan_progress_bar.setTextVisible(True)
+
+        if event.detail_key is None:
+            self._scan_detail_label.clear()
+            return
+
+        self._scan_detail_label.setText(
+            self._localizer.text(event.detail_key, **event.params)
+        )
 
     def _set_busy_state(self, busy: bool) -> None:
         self._scan_button.setEnabled(not busy)
@@ -157,3 +209,37 @@ class MainWindow(QMainWindow):
         self._has_services_checkbox.setText(
             self._localizer.text("main.has_services_checkbox")
         )
+        self._scan_stage_label.setText(
+            self._localizer.text(
+                self._current_stage_event.key,
+                **self._current_stage_event.params,
+            )
+        )
+        if self._current_progress_event.detail_key is None:
+            self._scan_detail_label.clear()
+        else:
+            self._scan_detail_label.setText(
+                self._localizer.text(
+                    self._current_progress_event.detail_key,
+                    **self._current_progress_event.params,
+                )
+            )
+
+    def _apply_progress_visual_state(self, stage_key: str) -> None:
+        style_by_stage = {
+            "progress.stage.completed": (
+                "QProgressBar::chunk { background-color: #6aa84f; }",
+                "QLabel#scanStageLabel { color: #2f6d2f; font-weight: 600; }",
+            ),
+            "progress.stage.stopped": (
+                "QProgressBar::chunk { background-color: #d9a441; }",
+                "QLabel#scanStageLabel { color: #8a6d1d; font-weight: 600; }",
+            ),
+            "progress.stage.failed": (
+                "QProgressBar::chunk { background-color: #c0504d; }",
+                "QLabel#scanStageLabel { color: #8f2f2c; font-weight: 600; }",
+            ),
+        }
+        progress_style, label_style = style_by_stage.get(stage_key, ("", ""))
+        self._scan_progress_bar.setStyleSheet(progress_style)
+        self._scan_stage_label.setStyleSheet(label_style)
