@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import logging
 from functools import lru_cache
-from importlib.resources import files
+from pathlib import Path
 
 from ..core.mac import oui_prefix
+from ..resources import resource_path
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +44,8 @@ class LocalOuiVendorLookup:
 
 @lru_cache(maxsize=1)
 def _load_oui_vendor_map() -> dict[str, str]:
-    resource = files("iplocalscan.services.data").joinpath("oui.json")
-    with resource.open("r", encoding="utf-8") as handle:
+    resource = resource_path("services", "data", "oui.json")
+    with Path(resource).open("r", encoding="utf-8") as handle:
         payload = json.load(handle)
 
     return {str(prefix).upper(): str(vendor) for prefix, vendor in payload.items()}
-

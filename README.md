@@ -50,6 +50,25 @@ pip install -e .
 python -m iplocalscan
 ```
 
+## Windows Packaging
+
+Use the top-level launcher as the PyInstaller entry point instead of
+`iplocalscan/__main__.py`.
+
+```powershell
+pip install pyinstaller
+pyinstaller --clean --noconfirm iplocalscan.spec
+```
+
+The packaged executable will be created at:
+
+```text
+dist/iplocalscan/iplocalscan.exe
+```
+
+Bundled data files such as `iplocalscan/services/data/oui.json` are included through
+the spec file, and runtime resource resolution works in both source and frozen modes.
+
 ### Linux/macOS
 
 ```bash
