@@ -1,5 +1,5 @@
 #define MyAppName "IP Local Scan"
-#define MyAppVersion "0.2.0"
+#define MyAppVersion "0.3.0"
 #define MyAppPublisher "Dmitrii Fedorov"
 #define MyAppURL "https://github.com/fedorovdo/iplocalscan"
 #define MyAppExeName "iplocalscan.exe"
