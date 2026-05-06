@@ -179,6 +179,7 @@ class ScanOrchestrator:
                 detected_services=detected_services,
                 ports_scanned=True,
             )
+            updated_host = self._retry_missing_mac_vendor(updated_host)
             if open_ports:
                 hosts_with_open_ports += 1
 
@@ -218,3 +219,35 @@ class ScanOrchestrator:
                 return
 
         results.append(updated_result)
+
+    def _retry_missing_mac_vendor(self, result: ScanResult) -> ScanResult:
+        if result.mac_address and result.vendor:
+            return result
+
+        mac_address = result.mac_address
+        if mac_address is None:
+            mac_address = self._mac_address_resolver.resolve_mac_address(
+                result.ip_address
+            )
+
+        vendor = result.vendor
+        if vendor is None:
+            vendor = self._mac_vendor_lookup.lookup_vendor(mac_address)
+
+        if mac_address == result.mac_address and vendor == result.vendor:
+            return result
+
+        logger.debug(
+            "Updated host identity after port scan.",
+            extra={
+                "event": "post_port_identity_updated",
+                "ip_address": result.ip_address,
+                "mac_address": mac_address,
+                "vendor": vendor,
+            },
+        )
+        return replace(
+            result,
+            mac_address=mac_address or result.mac_address,
+            vendor=vendor or result.vendor,
+        )

@@ -17,6 +17,10 @@ _ARP_ENTRY_PATTERN = re.compile(
     r"(?P<mac>(?:[0-9a-fA-F]{2}[-:]){5}[0-9a-fA-F]{2})\s+"
     r"(?P<entry_type>\S+)\s*$"
 )
+_IP_MAC_LINE_PATTERN = re.compile(
+    r"(?P<ip>\d+\.\d+\.\d+\.\d+).*?"
+    r"(?P<mac>(?:[0-9a-fA-F]{2}[-:]){5}[0-9a-fA-F]{2})"
+)
 _NBTSTAT_NAME_PATTERN = re.compile(
     r"^\s*(?P<name>[^\s<].*?)\s+<(?P<suffix>[0-9A-Fa-f]{2})>\s+"
     r"(?P<entry_type>UNIQUE|GROUP)\s+(?P<status>\w+)\s*$"
@@ -145,10 +149,12 @@ class WindowsArpTableMacAddressResolver:
         max_attempts: int = 3,
         retry_delay_seconds: float = 0.08,
         ping_timeout_ms: int = 250,
+        command_timeout_seconds: float = 1.0,
     ) -> None:
         self._max_attempts = max_attempts
         self._retry_delay_seconds = retry_delay_seconds
         self._ping_timeout_ms = ping_timeout_ms
+        self._command_timeout_seconds = command_timeout_seconds
 
     def resolve_mac_address(self, ip_address: str) -> str | None:
         if not sys.platform.startswith("win"):
@@ -161,11 +167,13 @@ class WindowsArpTableMacAddressResolver:
             mac_address = self._lookup_mac_address(ip_address, targeted=True)
             if mac_address is None:
                 mac_address = self._lookup_mac_address(ip_address, targeted=False)
+            if mac_address is None:
+                mac_address = self._lookup_neighbor_cache_mac_address(ip_address)
             if mac_address is not None:
                 logger.debug(
-                    "Resolved MAC address from ARP table.",
+                    "Resolved MAC address from Windows neighbor data.",
                     extra={
-                        "event": "arp_mac_resolved",
+                        "event": "windows_mac_resolved",
                         "ip_address": ip_address,
                         "mac_address": mac_address,
                         "attempt": attempt,
@@ -208,8 +216,9 @@ class WindowsArpTableMacAddressResolver:
                 capture_output=True,
                 text=True,
                 errors="ignore",
+                timeout=self._command_timeout_seconds,
             )
-        except OSError:
+        except (OSError, subprocess.TimeoutExpired):
             logger.debug(
                 "Failed to read ARP table.",
                 extra={
@@ -238,6 +247,89 @@ class WindowsArpTableMacAddressResolver:
                 continue
 
             return normalize_mac_address(match.group("mac"))
+
+        return None
+
+    def _lookup_neighbor_cache_mac_address(self, ip_address: str) -> str | None:
+        for command_name, command in (
+            (
+                "Get-NetNeighbor",
+                [
+                    "powershell",
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-Command",
+                    (
+                        "Get-NetNeighbor -AddressFamily IPv4 -IPAddress $args[0] "
+                        "| Select-Object -Property IPAddress,LinkLayerAddress,State "
+                        "| Format-Table -HideTableHeaders"
+                    ),
+                    ip_address,
+                ],
+            ),
+            (
+                "netsh",
+                ["netsh", "interface", "ipv4", "show", "neighbors"],
+            ),
+        ):
+            try:
+                completed_process = _run_command(
+                    command,
+                    capture_output=True,
+                    text=True,
+                    errors="ignore",
+                    timeout=self._command_timeout_seconds,
+                )
+            except (OSError, subprocess.TimeoutExpired):
+                logger.debug(
+                    "Failed to read Windows neighbor cache.",
+                    extra={
+                        "event": "neighbor_cache_read_failed",
+                        "ip_address": ip_address,
+                        "command": command_name,
+                    },
+                )
+                continue
+
+            if completed_process.returncode != 0:
+                logger.debug(
+                    "Windows neighbor cache command returned a non-zero exit code.",
+                    extra={
+                        "event": "neighbor_cache_non_zero_exit",
+                        "ip_address": ip_address,
+                        "command": command_name,
+                        "returncode": completed_process.returncode,
+                    },
+                )
+                continue
+
+            mac_address = self._parse_ip_mac_lines(
+                completed_process.stdout,
+                ip_address=ip_address,
+            )
+            if mac_address is not None:
+                logger.debug(
+                    "Resolved MAC address from Windows neighbor cache.",
+                    extra={
+                        "event": "neighbor_cache_mac_resolved",
+                        "ip_address": ip_address,
+                        "command": command_name,
+                        "mac_address": mac_address,
+                    },
+                )
+                return mac_address
+
+        return None
+
+    def _parse_ip_mac_lines(self, output: str, *, ip_address: str) -> str | None:
+        for line in output.splitlines():
+            match = _IP_MAC_LINE_PATTERN.search(line)
+            if match is None or match.group("ip") != ip_address:
+                continue
+
+            mac_address = normalize_mac_address(match.group("mac"))
+            if mac_address is not None:
+                return mac_address
 
         return None
 

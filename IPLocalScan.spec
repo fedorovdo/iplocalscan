@@ -2,11 +2,14 @@
 
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_data_files
-
 
 project_root = Path(SPEC).resolve().parent
-datas = collect_data_files("iplocalscan.services.data")
+datas = [
+    (
+        str(project_root / "iplocalscan" / "services" / "data" / "oui.json"),
+        "iplocalscan/services/data",
+    ),
+]
 
 
 a = Analysis(
