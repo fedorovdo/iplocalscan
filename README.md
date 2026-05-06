@@ -1,47 +1,44 @@
 # iplocalscan
 
-`iplocalscan` is a PySide6 desktop application for administrator-focused local network scanning. The project is Windows-first, keeps SQLite-based local history, and is structured so future Linux desktop support and deeper scan stages can be added without rewriting the UI layer.
+`iplocalscan` is a Windows-first desktop application for administrator-focused local network scanning. It provides fast local subnet discovery, practical host and service visibility, scan-to-scan change tracking, and lightweight local history storage in a clean PySide6 interface backed by SQLite.
 
-## Project Structure
+## Download
 
-```text
-iplocalscan/
-|- iplocalscan/
-|  |- application/      # Controller, worker thread, and orchestration
-|  |- core/             # Domain entities, enums, and networking helpers
-|  |- localization/     # English and Russian UI strings
-|  |- persistence/      # SQLite schema and repositories
-|  |- services/         # Discovery, resolvers, and service abstractions
-|  |- ui/               # Main window, history dialog, and table models
-|  |- __main__.py
-|  |- app.py
-|  `- config.py
-|- pyproject.toml
-`- README.md
-```
+Download the latest Windows release from:
 
-## Current Features
+[Latest Release](https://github.com/fedorovdo/iplocalscan/releases/latest)
 
-- Main window with:
-  - CIDR network input
-  - Scan button
-  - Stop button
-  - History button
-  - Search/filter field
-  - Live-updating results table
-  - Status bar messages
-- Real IPv4 host discovery using parallel `ping` subprocess calls
-- Best-effort reverse DNS lookup using `socket.gethostbyaddr`
-- Best-effort MAC lookup using the Windows ARP table
-- SQLite persistence for scan sessions and results
-- Retention of the latest 3 scans
-- History dialog that loads real stored results
-- English and Russian localization scaffolding
-- Structured JSON logging to stdout/stderr
+Current public release: `v0.2.0`
 
-## Setup
+## Features
 
-### Windows PowerShell
+- CIDR-based local network scanning
+- Host discovery for online devices
+- TCP port scanning with basic service detection
+- Scan diffing: `New`, `Missing`, `Changed`, `Unchanged`
+- Local scan history stored in SQLite
+- English and Russian localization
+- About dialog with system and version information
+- CSV export from the main results view
+- CSV export from the history view
+- Excel-friendly CSV export for localized Windows systems
+
+## Screenshots
+
+Screenshots will be added to the repository as the UI is finalized.
+
+## How to Use
+
+1. Start `iplocalscan`.
+2. Enter a CIDR range such as `192.168.1.0/24`.
+3. Run a scan and watch results appear progressively.
+4. Sort or filter the table to focus on the hosts you need.
+5. Review changes between scans and open scan history when needed.
+6. Export the current view or a historical view to CSV for reporting.
+
+## Build From Source
+
+### Run in development mode
 
 ```powershell
 python -m venv .venv
@@ -50,41 +47,54 @@ pip install -e .
 python -m iplocalscan
 ```
 
-## Windows Packaging
-
-Use the top-level launcher as the PyInstaller entry point instead of
-`iplocalscan/__main__.py`.
+You can also launch the app with:
 
 ```powershell
-pip install pyinstaller
-pyinstaller --clean --noconfirm iplocalscan.spec
+python run_app.py
 ```
 
-The packaged executable will be created at:
+### Build a Windows executable with PyInstaller
+
+```powershell
+.\.venv\Scripts\pyinstaller --clean --noconfirm IPLocalScan.spec
+```
+
+Build output:
 
 ```text
-dist/iplocalscan/iplocalscan.exe
+dist\iplocalscan\iplocalscan.exe
 ```
 
-Bundled data files such as `iplocalscan/services/data/oui.json` are included through
-the spec file, and runtime resource resolution works in both source and frozen modes.
+### Build a Windows installer with Inno Setup
 
-### Linux/macOS
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e .
-python -m iplocalscan
+```powershell
+ISCC installer\IPLocalScan.iss
 ```
 
-## Discovery Notes
+## Project Structure
 
-- CIDR input is required for this step, for example `192.168.1.0/24`.
-- The current implementation only adds online hosts to the results table.
-- Port scanning and service detection are intentionally still stubbed.
-- MAC vendor lookup remains an abstraction and currently returns no vendor value when no provider is configured.
+```text
+iplocalscan/
+|- iplocalscan/
+|  |- application/    # Controller, worker thread, orchestration
+|  |- core/           # Domain models, enums, helpers
+|  |- localization/   # EN/RU strings and localization manager
+|  |- persistence/    # SQLite layer and repositories
+|  |- services/       # Discovery, resolution, scanning services
+|  |- ui/             # Main window, dialogs, table models
+|  |- app.py
+|  `- version.py
+|- installer/         # Inno Setup packaging
+|- IPLocalScan.spec   # PyInstaller build spec
+|- pyproject.toml
+|- run_app.py
+`- README.md
+```
 
-## Recommended Next Step
+## Roadmap
 
-Implement common-port scanning and service detection as a second scan stage that runs only for already discovered online hosts, then stream enrichment updates back into the same table model with `upsert_result`.
+- richer service identification and banner grabbing
+- configurable scan profiles
+- improved device identification and vendor coverage
+- installer and release polish for wider deployment
+- future Linux desktop support
