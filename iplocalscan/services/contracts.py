@@ -4,7 +4,7 @@ from collections.abc import Callable, Sequence
 from threading import Event
 from typing import Protocol
 
-from ..core.entities import ScanProgress, ScanResult, ServiceRecord
+from ..core.entities import DeviceIdentity, ScanProgress, ScanResult, ServiceRecord
 
 
 class HostDiscoveryService(Protocol):
@@ -50,4 +50,9 @@ class ServiceDetector(Protocol):
 
 class MacVendorLookup(Protocol):
     def lookup_vendor(self, mac_address: str | None) -> str | None:
+        ...
+
+
+class DeviceIdentityService(Protocol):
+    def query_identity(self, ip_address: str) -> DeviceIdentity | None:
         ...

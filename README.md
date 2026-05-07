@@ -8,7 +8,7 @@ Download the latest Windows release from:
 
 [Latest Release](https://github.com/fedorovdo/iplocalscan/releases/latest)
 
-Current public release: `v0.2.0`
+Current public release: `v0.4.0`
 
 ## Features
 

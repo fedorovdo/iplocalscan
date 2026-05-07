@@ -186,7 +186,7 @@ class ScanController(QObject):
         )
         self._upsert_current_result(compared_result)
         self.result_discovered.emit(compared_result)
-        logger.info(
+        logger.debug(
             "Result updated during scan.",
             extra={
                 "event": "scan_result_updated",

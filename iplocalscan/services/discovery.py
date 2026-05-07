@@ -50,6 +50,7 @@ class SubprocessPingHostDiscovery:
         results: list[ScanResult] = []
         scanned_hosts = 0
         discovered_hosts = 0
+        submitted_hosts = 0
 
         logger.info(
             "Starting ping-based host discovery.",
@@ -59,6 +60,7 @@ class SubprocessPingHostDiscovery:
                 "total_hosts": total_hosts,
                 "max_workers": max_workers,
                 "timeout_ms": self._timeout_ms,
+                "stop_requested": stop_event.is_set() if stop_event else False,
             },
         )
 
@@ -83,6 +85,7 @@ class SubprocessPingHostDiscovery:
             pending_futures: dict[Future[ProbeResult], str] = {}
 
             def submit_next() -> bool:
+                nonlocal submitted_hosts
                 if stop_event is not None and stop_event.is_set():
                     return False
                 try:
@@ -92,6 +95,7 @@ class SubprocessPingHostDiscovery:
 
                 future = executor.submit(self._probe_host, ip_address)
                 pending_futures[future] = ip_address
+                submitted_hosts += 1
                 return True
 
             for _ in range(max_workers):
@@ -139,7 +143,7 @@ class SubprocessPingHostDiscovery:
                             status=HostStatus.UP,
                         )
                         results.append(discovered_result)
-                        logger.info(
+                        logger.debug(
                             "Discovered online host.",
                             extra={
                                 "event": "host_discovered",
@@ -171,7 +175,10 @@ class SubprocessPingHostDiscovery:
                 "event": "host_discovery_completed",
                 "network_range": network_range,
                 "scanned_hosts": scanned_hosts,
+                "submitted_hosts": submitted_hosts,
                 "discovered_hosts": discovered_hosts,
+                "total_hosts": total_hosts,
+                "stop_requested": stop_event.is_set() if stop_event else False,
             },
         )
         return results

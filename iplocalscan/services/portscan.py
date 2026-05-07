@@ -89,7 +89,7 @@ class SocketTcpConnectPortScanner:
         *,
         ports: Sequence[int] = DEFAULT_TCP_PORTS,
         timeout_seconds: float = 0.3,
-        max_workers: int = 12,
+        max_workers: int = 64,
     ) -> None:
         self._ports = tuple(dict.fromkeys(int(port) for port in ports))
         self._timeout_seconds = timeout_seconds
@@ -107,7 +107,7 @@ class SocketTcpConnectPortScanner:
         max_workers = max(1, min(self._max_workers, len(self._ports)))
         open_ports: list[int] = []
 
-        logger.info(
+        logger.debug(
             "Starting TCP connect scan for host.",
             extra={
                 "event": "port_scan_started",
@@ -145,7 +145,7 @@ class SocketTcpConnectPortScanner:
                 if stop_event is not None and stop_event.is_set():
                     for future in pending_futures:
                         future.cancel()
-                    logger.info(
+                    logger.debug(
                         "Stopping TCP connect scan after cancellation request.",
                         extra={
                             "event": "port_scan_stopping",
@@ -180,7 +180,7 @@ class SocketTcpConnectPortScanner:
                     submit_next()
 
         unique_open_ports = sorted(set(open_ports))
-        logger.info(
+        logger.debug(
             "Completed TCP connect scan for host.",
             extra={
                 "event": "port_scan_completed",

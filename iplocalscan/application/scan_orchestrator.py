@@ -5,9 +5,16 @@ from collections.abc import Callable
 from dataclasses import replace
 from threading import Event
 
-from ..core.entities import ScanExecutionResult, ScanProgress, ScanResult
+from ..core.entities import (
+    DeviceIdentity,
+    ScanExecutionResult,
+    ScanProgress,
+    ScanResult,
+    ServiceRecord,
+)
 from ..core.enums import ScanLifecycleStatus, ScanStage
 from ..services.contracts import (
+    DeviceIdentityService,
     HostDiscoveryService,
     HostnameResolver,
     MacAddressResolver,
@@ -17,6 +24,24 @@ from ..services.contracts import (
 )
 
 logger = logging.getLogger(__name__)
+
+_PRINTER_PORTS = {515, 631, 9100, 5357}
+_PRINTER_VENDOR_TERMS = (
+    "canon",
+    "epson",
+    "xerox",
+    "ricoh",
+    "kyocera",
+    "brother",
+    "lexmark",
+    "zebra",
+    "pantum",
+)
+_PRINTER_HOSTNAME_TERMS = (
+    "npi",
+    "imagerunner",
+    "pantum",
+)
 
 
 class ScanOrchestrator:
@@ -30,6 +55,7 @@ class ScanOrchestrator:
         port_scanner: PortScanner,
         service_detector: ServiceDetector,
         mac_vendor_lookup: MacVendorLookup,
+        device_identity_service: DeviceIdentityService | None = None,
     ) -> None:
         self._host_discovery = host_discovery
         self._hostname_resolver = hostname_resolver
@@ -37,6 +63,7 @@ class ScanOrchestrator:
         self._port_scanner = port_scanner
         self._service_detector = service_detector
         self._mac_vendor_lookup = mac_vendor_lookup
+        self._device_identity_service = device_identity_service
         self._stop_requested = Event()
 
     def execute(
@@ -51,6 +78,7 @@ class ScanOrchestrator:
             extra={
                 "event": "scan_execute_started",
                 "network_range": network_range,
+                "stop_requested": self._stop_requested.is_set(),
             },
         )
         results: list[ScanResult] = []
@@ -69,6 +97,15 @@ class ScanOrchestrator:
             stop_event=self._stop_requested,
             on_host_discovered=handle_host_discovered,
             on_progress=on_progress_updated,
+        )
+        logger.info(
+            "Host discovery stage returned results to orchestrator.",
+            extra={
+                "event": "scan_discovery_results_ready",
+                "network_range": network_range,
+                "result_count": len(results),
+                "stop_requested": self._stop_requested.is_set(),
+            },
         )
 
         self._scan_ports_for_discovered_hosts(
@@ -95,6 +132,7 @@ class ScanOrchestrator:
                 "network_range": network_range,
                 "status": final_status.value,
                 "result_count": len(results),
+                "stop_requested": self._stop_requested.is_set(),
             },
         )
         self._stop_requested.clear()
@@ -139,6 +177,14 @@ class ScanOrchestrator:
 
         total_hosts = len(results)
         if total_hosts == 0:
+            logger.info(
+                "Skipping port scan stage because discovery returned no hosts.",
+                extra={
+                    "event": "port_stage_skipped_no_hosts",
+                    "network_range": network_range,
+                    "stop_requested": self._stop_requested.is_set(),
+                },
+            )
             return
 
         logger.info(
@@ -180,6 +226,7 @@ class ScanOrchestrator:
                 ports_scanned=True,
             )
             updated_host = self._retry_missing_mac_vendor(updated_host)
+            updated_host = self._enrich_printer_identity(updated_host)
             if open_ports:
                 hosts_with_open_ports += 1
 
@@ -251,3 +298,80 @@ class ScanOrchestrator:
             mac_address=mac_address or result.mac_address,
             vendor=vendor or result.vendor,
         )
+
+    def _enrich_printer_identity(self, result: ScanResult) -> ScanResult:
+        if self._device_identity_service is None:
+            return result
+        if not self._is_likely_printer_candidate(result):
+            return result
+
+        identity = self._device_identity_service.query_identity(result.ip_address)
+        if identity is None or not identity.has_data():
+            return result
+
+        updated_services = self._services_with_snmp(result.detected_services)
+        hostname = result.hostname or self._hostname_from_identity(identity)
+        updated_result = replace(
+            result,
+            hostname=hostname,
+            device_model=identity.device_model or result.device_model,
+            serial_number=identity.serial_number or result.serial_number,
+            snmp_name=identity.snmp_name or result.snmp_name,
+            snmp_description=identity.snmp_description or result.snmp_description,
+            snmp_object_id=identity.snmp_object_id or result.snmp_object_id,
+            detected_services=updated_services,
+        )
+        logger.debug(
+            "Updated host identity from SNMP.",
+            extra={
+                "event": "snmp_host_identity_updated",
+                "ip_address": result.ip_address,
+                "hostname": updated_result.hostname,
+                "device_model": updated_result.device_model,
+                "serial_number": updated_result.serial_number,
+            },
+        )
+        return updated_result
+
+    def _is_likely_printer_candidate(self, result: ScanResult) -> bool:
+        if _PRINTER_PORTS.intersection(result.open_ports):
+            return True
+
+        vendor = (result.vendor or "").casefold()
+        if vendor and any(term in vendor for term in _PRINTER_VENDOR_TERMS):
+            return True
+
+        hostname = (result.hostname or "").casefold()
+        if not hostname:
+            return False
+        if any(term in hostname for term in _PRINTER_HOSTNAME_TERMS):
+            return True
+        if hostname.startswith("mf") and any(
+            character.isdigit() for character in hostname
+        ):
+            return True
+        return hostname.startswith("hp") and any(
+            character.isdigit() for character in hostname
+        )
+
+    def _services_with_snmp(
+        self,
+        detected_services: list[ServiceRecord],
+    ) -> list[ServiceRecord]:
+        if any(
+            service.port == 161 and (service.protocol or "").casefold() == "udp"
+            for service in detected_services
+        ):
+            return detected_services
+
+        return [
+            *detected_services,
+            ServiceRecord(name="SNMP", protocol="udp", port=161),
+        ]
+
+    def _hostname_from_identity(self, identity: DeviceIdentity) -> str | None:
+        if identity.snmp_name:
+            return identity.snmp_name
+        if identity.device_model and len(identity.device_model) <= 80:
+            return identity.device_model
+        return None

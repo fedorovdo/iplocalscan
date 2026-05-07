@@ -14,11 +14,36 @@ class ServiceRecord:
 
 
 @dataclass(slots=True)
+class DeviceIdentity:
+    device_model: str | None = None
+    serial_number: str | None = None
+    snmp_name: str | None = None
+    snmp_description: str | None = None
+    snmp_object_id: str | None = None
+
+    def has_data(self) -> bool:
+        return any(
+            (
+                self.device_model,
+                self.serial_number,
+                self.snmp_name,
+                self.snmp_description,
+                self.snmp_object_id,
+            )
+        )
+
+
+@dataclass(slots=True)
 class ScanResult:
     ip_address: str
     mac_address: str | None = None
     vendor: str | None = None
     hostname: str | None = None
+    device_model: str | None = None
+    serial_number: str | None = None
+    snmp_name: str | None = None
+    snmp_description: str | None = None
+    snmp_object_id: str | None = None
     status: HostStatus = HostStatus.UNKNOWN
     change_status: ChangeStatus = ChangeStatus.UNCHANGED
     open_ports: list[int] = field(default_factory=list)

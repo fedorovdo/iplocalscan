@@ -23,6 +23,11 @@ CREATE TABLE IF NOT EXISTS scan_results (
     mac_address TEXT,
     vendor TEXT,
     hostname TEXT,
+    device_model TEXT,
+    serial_number TEXT,
+    snmp_name TEXT,
+    snmp_description TEXT,
+    snmp_object_id TEXT,
     status TEXT NOT NULL,
     change_status TEXT NOT NULL DEFAULT 'unchanged',
     open_ports_json TEXT NOT NULL DEFAULT '[]',
@@ -77,6 +82,17 @@ class DatabaseManager:
                 ADD COLUMN change_status TEXT NOT NULL DEFAULT 'unchanged'
                 """
             )
+        for column_name in (
+            "device_model",
+            "serial_number",
+            "snmp_name",
+            "snmp_description",
+            "snmp_object_id",
+        ):
+            if column_name not in scan_result_columns:
+                connection.execute(
+                    f"ALTER TABLE scan_results ADD COLUMN {column_name} TEXT"
+                )
         if "mac_vendor" in scan_result_columns:
             connection.execute(
                 """

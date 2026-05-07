@@ -23,6 +23,7 @@ from .services.resolvers import (
     WindowsNetbiosHostnameResolver,
     WindowsArpTableMacAddressResolver,
 )
+from .services.snmp import LightweightSnmpIdentityService
 from .settings import SettingsManager
 from .services.vendor_lookup import LocalOuiVendorLookup
 from .ui.main_window import MainWindow
@@ -56,6 +57,7 @@ def create_application(
         port_scanner=SocketTcpConnectPortScanner(),
         service_detector=StaticPortServiceDetector(),
         mac_vendor_lookup=LocalOuiVendorLookup(),
+        device_identity_service=LightweightSnmpIdentityService(),
     )
     controller = ScanController(
         orchestrator=orchestrator,
